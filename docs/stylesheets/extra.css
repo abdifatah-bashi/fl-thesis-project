@@ -1,0 +1,358 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+/* Apply Montserrat to Headings */
+h1, h2, h3, h4, h5, h6, .md-typeset h1, .md-typeset h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+/* Glassmorphism Header */
+.md-header {
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+}
+
+[data-md-color-scheme="slate"] .md-header {
+    background-color: rgba(30, 30, 30, 0.8);
+}
+
+/* Improved Navigation Styling */
+.md-tabs {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    text-transform: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+}
+
+/* Cards / Content spacing */
+.md-content__inner {
+    margin-top: 2rem;
+}
+
+/* Subtle shadows on images */
+img {
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* --- PREMIUM CODE BLOCKS --- */
+
+/* The container for the code block */
+.md-typeset pre {
+    background-color: #0f172a !important; /* Deep Slate / Dark Blue */
+    color: #ffffff !important; /* Pure White text base */
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* Heavy shadow */
+    padding-top: 40px !important; /* Space for window controls */
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 1.5em;
+    margin-bottom: 1.5em;
+}
+
+/* Mac-style Window Controls (Red/Yellow/Green dots) */
+.md-typeset pre::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #ff5f56; /* Red */
+    box-shadow: 20px 0 0 #ffbd2e, 40px 0 0 #27c93f; /* Yellow, Green */
+    opacity: 0.8;
+}
+
+/* The code content itself */
+.md-typeset pre > code {
+    background-color: transparent !important; /* Let parent handle bg */
+    color: #ffffff !important; /* Force white text */
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.9em;
+    padding: 0 1rem 1rem 1rem !important; /* Adjust padding */
+}
+
+/* Force syntax highlighting visibility on dark bg */
+/* This ensures that even if light mode is active, code stays dark/vibrant */
+.md-typeset .hll { background-color: #49483e !important }
+.md-typeset .c { color: #a6acb8 !important } /* Main Comment lightened */
+.md-typeset .err { color: #960050 !important; background-color: #1e0010 !important } /* Error */
+.md-typeset .k { color: #66d9ef !important } /* Keyword */
+.md-typeset .l { color: #ae81ff !important } /* Literal */
+.md-typeset .n { color: #ffffff !important } /* Name - Pure White */
+.md-typeset .o { color: #f92672 !important } /* Operator */
+.md-typeset .p { color: #ffffff !important } /* Punctuation - Pure White */
+.md-typeset .cm { color: #a6acb8 !important } /* Comment.Multiline */
+.md-typeset .cp { color: #a6acb8 !important } /* Comment.Preproc */
+.md-typeset .c1 { color: #a6acb8 !important } /* Comment.Single */
+.md-typeset .cs { color: #a6acb8 !important } /* Comment.Special */
+.md-typeset .gd { color: #f92672 !important } /* Generic.Deleted */
+.md-typeset .ge { font-style: italic !important } /* Generic.Emph */
+.md-typeset .gh { color: #ffffff !important; font-weight: bold !important } /* Generic.Heading */
+.md-typeset .gi { color: #a6e22e !important } /* Generic.Inserted */
+.md-typeset .gs { font-weight: bold !important } /* Generic.Strong */
+.md-typeset .gu { color: #a6acb8 !important } /* Generic.Subheading */
+.md-typeset .kc { color: #66d9ef !important } /* Keyword.Constant */
+.md-typeset .kd { color: #66d9ef !important } /* Keyword.Declaration */
+.md-typeset .kn { color: #f92672 !important } /* Keyword.Namespace */
+.md-typeset .kp { color: #66d9ef !important } /* Keyword.Pseudo */
+.md-typeset .kr { color: #66d9ef !important } /* Keyword.Reserved */
+.md-typeset .kt { color: #66d9ef !important } /* Keyword.Type */
+.md-typeset .ld { color: #e6db74 !important } /* Literal.Date */
+.md-typeset .m { color: #ae81ff !important } /* Literal.Number */
+.md-typeset .s { color: #e6db74 !important } /* Literal.String */
+.md-typeset .na { color: #a6e22e !important } /* Name.Attribute */
+.md-typeset .nb { color: #ffffff !important } /* Name.Builtin */
+.md-typeset .nc { color: #a6e22e !important } /* Name.Class */
+.md-typeset .no { color: #66d9ef !important } /* Name.Constant */
+.md-typeset .nd { color: #a6e22e !important } /* Name.Decorator */
+.md-typeset .ni { color: #ffffff !important } /* Name.Entity */
+.md-typeset .ne { color: #a6e22e !important } /* Name.Exception */
+.md-typeset .nf { color: #a6e22e !important } /* Name.Function */
+.md-typeset .nl { color: #ffffff !important } /* Name.Label */
+.md-typeset .nn { color: #ffffff !important } /* Name.Namespace */
+.md-typeset .nx { color: #a6e22e !important } /* Name.Other */
+.md-typeset .py { color: #ffffff !important } /* Name.Property */
+.md-typeset .nt { color: #f92672 !important } /* Name.Tag */
+.md-typeset .nv { color: #ffffff !important } /* Name.Variable */
+.md-typeset .ow { color: #f92672 !important } /* Operator.Word */
+.md-typeset .w { color: #ffffff !important } /* Text.Whitespace */
+.md-typeset .mb { color: #ae81ff !important } /* Literal.Number.Bin */
+.md-typeset .mf { color: #ae81ff !important } /* Literal.Number.Float */
+.md-typeset .mh { color: #ae81ff !important } /* Literal.Number.Hex */
+.md-typeset .mi { color: #ae81ff !important } /* Literal.Number.Integer */
+.md-typeset .mo { color: #ae81ff !important } /* Literal.Number.Oct */
+.md-typeset .sa { color: #e6db74 !important } /* Literal.String.Affix */
+.md-typeset .sb { color: #e6db74 !important } /* Literal.String.Backtick */
+.md-typeset .sc { color: #e6db74 !important } /* Literal.String.Char */
+.md-typeset .dl { color: #e6db74 !important } /* Literal.String.Delimiter */
+.md-typeset .sd { color: #e6db74 !important } /* Literal.String.Doc */
+.md-typeset .s2 { color: #e6db74 !important } /* Literal.String.Double */
+.md-typeset .se { color: #ae81ff !important } /* Literal.String.Escape */
+.md-typeset .sh { color: #e6db74 !important } /* Literal.String.Heredoc */
+.md-typeset .si { color: #e6db74 !important } /* Literal.String.Interpol */
+.md-typeset .sx { color: #e6db74 !important } /* Literal.String.Other */
+.md-typeset .sr { color: #e6db74 !important } /* Literal.String.Regex */
+.md-typeset .s1 { color: #e6db74 !important } /* Literal.String.Single */
+.md-typeset .ss { color: #e6db74 !important } /* Literal.String.Symbol */
+.md-typeset .bp { color: #ffffff !important } /* Name.Builtin.Pseudo */
+.md-typeset .fm { color: #a6e22e !important } /* Name.Function.Magic */
+.md-typeset .vc { color: #ffffff !important } /* Name.Variable.Class */
+.md-typeset .vg { color: #ffffff !important } /* Name.Variable.Global */
+.md-typeset .vi { color: #ffffff !important } /* Name.Variable.Instance */
+.md-typeset .vm { color: #ffffff !important } /* Name.Variable.Magic */
+.md-typeset .il { color: #ae81ff !important } /* Literal.Number.Integer.Long */
+
+/* Copy Button Styling - Broad Selector */
+.md-clipboard {
+    background-color: #ffffff !important; /* Solid White */
+    color: #000000 !important; /* Black Icon */
+    border: 1px solid rgba(0,0,0,0.1) !important;
+    border-radius: 4px !important;
+    margin: 4px !important;
+    opacity: 1 !important;
+    transition: all 0.2s !important;
+}
+
+.md-clipboard:hover {
+    background-color: #f0f0f0 !important;
+    color: #000000 !important;
+    transform: scale(1.1);
+}
+
+.md-clipboard svg {
+    fill: #000000 !important;
+    color: #000000 !important;
+    display: block !important;
+}
+
+/* --- RIGHT SIDEBAR (Table of Contents) --- */
+.md-sidebar--secondary {
+    font-family: 'Inter', sans-serif;
+    margin-left: 1rem;
+}
+
+/* Title "Table of contents" */
+.md-sidebar--secondary .md-nav__title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8; /* Slate 400 */
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle separator */
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* The List Items Container */
+.md-sidebar--secondary .md-nav__list {
+    padding-left: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.05); /* Subtle vertical guide */
+}
+
+/* Individual Items */
+.md-sidebar--secondary .md-nav__item {
+    border-left: 3px solid transparent; /* Indicator strip */
+    padding-left: 1rem;
+    margin-bottom: 0.25rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Links */
+.md-sidebar--secondary .md-nav__link {
+    color: #64748b; /* Slate 500 - Default muted */
+    font-size: 0.9rem;
+    padding: 0.25rem 0;
+    transition: all 0.2s ease;
+    display: block;
+}
+
+/* Hover State */
+.md-sidebar--secondary .md-nav__link:hover {
+    color: #e2e8f0; /* Slate 200 */
+    transform: translateX(4px);
+}
+
+/* Active State (Scroll Spy) */
+.md-sidebar--secondary .md-nav__item--active {
+    border-left-color: #6366f1; /* Indigo 500 */
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%);
+    border-radius: 0 4px 4px 0;
+}
+
+.md-sidebar--secondary .md-nav__item--active > .md-nav__link {
+    color: #818cf8; /* Indigo 400 */
+    font-weight: 600;
+}
+
+/* Nested Items styling - indentation */
+.md-sidebar--secondary .md-nav__item .md-nav__list {
+    margin-top: 0.4rem;
+    border-left: none; /* Don't repeat the border */
+    padding-left: 0.5rem;
+}
+
+.md-sidebar--secondary .md-nav__item .md-nav__item {
+    border-left: none; /* No colored border for nested items */
+    margin-bottom: 0;
+}
+
+.md-sidebar--secondary .md-nav__item .md-nav__item--active {
+    background: none; /* No background for nested active, just text color */
+}
+
+.md-sidebar--secondary .md-nav__item .md-nav__item--active > .md-nav__link {
+    color: #a5b4fc; /* Lighter Indigo for nested */
+}
+
+/* --- LEFT SIDEBAR (Primary Navigation) --- */
+.md-sidebar--primary {
+    font-family: 'Inter', sans-serif;
+    margin-right: 1rem;
+}
+
+/* Section Sections (e.g., "Guides") */
+.md-nav--primary .md-nav__title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #cbd5e1; /* Slate 300 */
+    letter-spacing: 0.02em;
+}
+
+/* Main Top-Level Links */
+.md-nav--primary > .md-nav__list > .md-nav__item > .md-nav__link {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* Default Links */
+.md-nav--primary .md-nav__link {
+    color: #94a3b8; /* Slate 400 */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+/* --- REFINED NAVIGATION & TOC INTEGRATION --- */
+
+/* 1. Base Link Style (Reset) */
+html body .md-nav__link {
+    transition: all 0.2s ease;
+}
+
+/* 2. Top-Level Page Active State (The only one that gets the Pill) */
+/* We use > selector to ensure we only target the direct link of the active item, not children */
+html body .md-nav > .md-nav__list > .md-nav__item--active > .md-nav__link {
+    background-color: #6366f1 !important; /* Indigo 500 */
+    color: #ffffff !important;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+    border-radius: 6px;
+}
+
+/* 3. Nested TOC Items (The styling for attributes/sections within a page) */
+/* Reset background for deeper levels */
+html body .md-nav__item .md-nav__list .md-nav__link--active,
+html body .md-nav__item .md-nav__list .md-nav__link {
+    background-color: transparent !important; /* NO background for TOC items */
+    box-shadow: none !important;
+    border-radius: 0;
+    padding-left: 12px;
+    border-left: 2px solid transparent;
+}
+
+/* Active TOC Item Styling (Just text color + border) */
+html body .md-nav__item .md-nav__list .md-nav__link--active {
+    color: #6366f1 !important; /* Indigo Text */
+    border-left-color: #6366f1 !important;
+    font-weight: 600;
+}
+
+/* Inactive TOC Item Styling (Muted) */
+html body .md-nav__item .md-nav__list .md-nav__link {
+    color: #94a3b8 !important; /* Slate 400 */
+}
+
+/* 4. Hover States */
+/* Top Level Hover */
+html body .md-nav > .md-nav__list > .md-nav__item > .md-nav__link:hover:not(.md-nav__link--active) {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    transform: translateX(4px);
+}
+
+/* TOC Item Hover */
+html body .md-nav__item .md-nav__list .md-nav__link:hover {
+    color: #818cf8 !important; /* Light Indigo */
+    transform: translateX(4px);
+    background-color: transparent !important;
+}
+
+/* Active Page State */
+/* We target the specific link that is active */
+.md-nav--primary .md-nav__link--active {
+    color: #ffffff !important;
+    background-color: #6366f1 !important; /* Indigo 500 Pill */
+    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+    font-weight: 600;
+}
+
+/* Parent of active page (e.g. "Guides" when inside "Server Guide") */
+.md-nav--primary .md-nav__item--active > .md-nav__link {
+    color: #e2e8f0;
+}
+
+/* Refine the checkbox toggle arrows */
+.md-nav__button {
+    color: #64748b;
+}
+

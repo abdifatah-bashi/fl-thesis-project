@@ -8,13 +8,12 @@ It is the EASIEST way to understand how FL works!
 import sys
 from pathlib import Path
 
-# Add project root to python path to import modules
-sys.path.append(str(Path(__file__).parent))
+
 
 import flwr as fl
-from simple_fl.data_loader import load_all_hospitals, prepare_client_data
-from simple_fl.client import HeartDiseaseClient
-from simple_fl.server import weighted_average
+from fl_core.data_loader import load_all_hospitals, prepare_client_data
+from fl_core.client import HeartDiseaseClient
+from fl_core.server import weighted_average
 
 def run_simulation():
     print("Starting FL Simulation...")

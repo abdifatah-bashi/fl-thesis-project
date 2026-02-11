@@ -1,6 +1,6 @@
 # FL Client Guide
 
-This document explains the logic within `simple_fl/client.py`. The Client represents a **Hospital**.
+This document explains the logic within `src/fl_core/client.py`. The Client represents a **Hospital**.
 
 ## Client Logic Flowchart
 

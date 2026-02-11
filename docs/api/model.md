@@ -1,0 +1,3 @@
+# Model API
+
+::: src.model

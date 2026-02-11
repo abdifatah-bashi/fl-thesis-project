@@ -3,8 +3,12 @@ Run FL Client - 2 HOSPITALS VERSION
 """
 
 import sys
-from data_loader import load_all_hospitals, prepare_client_data
-from client import start_client
+from pathlib import Path
+
+
+
+from fl_core.data_loader import load_all_hospitals, prepare_client_data
+from fl_core.client import start_client
 
 
 def main(client_id=0):

@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # Simple FL Project Overview
 
 This document provides a high-level overview of your Federated Learning (FL) implementation for heart disease prediction using the **Flower (flwr)** framework.

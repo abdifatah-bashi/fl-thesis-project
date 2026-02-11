@@ -1,6 +1,6 @@
 # FL Server Guide
 <!--  -->
-This document explains the logic within `simple_fl/server.py`. The Server is the "conductor" of the Federated Learning orchestra.
+This document explains the logic within `src/fl_core/server.py`. The Server is the "conductor" of the Federated Learning orchestra.
 
 ## Server Logic Flowchart
 

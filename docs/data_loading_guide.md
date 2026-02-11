@@ -1,6 +1,6 @@
 # Data Loading Process Explained
 
-This document explains exactly how the `simple_fl/data_loader.py` file prepares your heart disease data for Federated Learning.
+This document explains exactly how the `src/fl_core/data_loader.py` file prepares your heart disease data for Federated Learning.
 
 ## Overview Flowchart
 

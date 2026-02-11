@@ -20,6 +20,7 @@ dependencies = [
     "ucimlrepo",
     "scikit-learn",
     "numpy",
+    "matplotlib",
 ]
 
 [project.optional-dependencies]

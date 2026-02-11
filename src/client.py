@@ -3,8 +3,8 @@ Federated Learning Client (Hospital)
 """
 
 import flwr as fl
-from fl_core.model import HeartDiseaseNet, train_model, test_model
-from fl_core.utils import get_parameters, set_parameters
+from src.model import HeartDiseaseNet, train_model, test_model
+from src.utils import get_parameters, set_parameters
 
 
 class HeartDiseaseClient(fl.client.NumPyClient):

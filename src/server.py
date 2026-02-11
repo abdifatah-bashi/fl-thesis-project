@@ -7,11 +7,18 @@ from typing import List, Tuple
 from flwr.common import Metrics
 
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
-    """Aggregate metrics using weighted average."""
+    """Aggregate evaluation metrics using weighted average."""
     total_examples = sum(num_examples for num_examples, _ in metrics)
     accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
     weighted_accuracy = sum(accuracies) / total_examples
     return {"accuracy": weighted_accuracy}
+
+def weighted_average_loss(metrics: List[Tuple[int, Metrics]]) -> Metrics:
+    """Aggregate training loss metrics using weighted average."""
+    total_examples = sum(num_examples for num_examples, _ in metrics)
+    losses = [num_examples * m["loss"] for num_examples, m in metrics]
+    weighted_loss = sum(losses) / total_examples
+    return {"loss": weighted_loss}
 
 def start_server(num_rounds=5, num_clients=2, server_address="0.0.0.0:8080"):
     """Start FL server for 2 hospitals."""

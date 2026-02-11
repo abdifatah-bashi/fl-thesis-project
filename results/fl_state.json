@@ -1,0 +1,61 @@
+{
+  "hospitals": {
+    "cleveland": {
+      "registered": true,
+      "num_patients": 303,
+      "disease_rate": 0.45874587458745875,
+      "status": "done",
+      "config": {
+        "epochs_per_round": 1,
+        "batch_size": 32,
+        "learning_rate": 0.01,
+        "train_split": 0.8
+      },
+      "registered_at": "2026-02-11T19:51:51.137321"
+    },
+    "hungarian": {
+      "registered": true,
+      "num_patients": 294,
+      "disease_rate": 0.36054421768707484,
+      "status": "done",
+      "config": {
+        "epochs_per_round": 1,
+        "batch_size": 32,
+        "learning_rate": 0.01,
+        "train_split": 0.8
+      },
+      "registered_at": "2026-02-11T19:52:42.672282"
+    }
+  },
+  "federation": {
+    "active": true,
+    "current_round": 3,
+    "total_rounds": 3,
+    "status": "complete",
+    "started_at": "2026-02-11T19:53:13.638089",
+    "completed_at": "2026-02-11T19:53:18.715165",
+    "history": {
+      "rounds": [
+        1,
+        2,
+        3
+      ],
+      "accuracy": [
+        0.8583,
+        0.8667,
+        0.8333
+      ],
+      "train_loss": [
+        0.5594,
+        0.3953,
+        0.3732
+      ],
+      "eval_loss": [
+        0.3633,
+        0.3222,
+        0.3561
+      ]
+    }
+  },
+  "last_updated": "2026-02-11T19:53:18.715191"
+}

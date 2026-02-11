@@ -53,3 +53,5 @@ urllib3==2.6.3
 ucimlrepo
 mkdocs-material
 mkdocstrings[python]
+streamlit>=1.28.0
+plotly>=5.18.0

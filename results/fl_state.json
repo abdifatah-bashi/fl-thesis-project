@@ -11,7 +11,7 @@
         "learning_rate": 0.01,
         "train_split": 0.8
       },
-      "registered_at": "2026-02-11T21:48:51.373160"
+      "registered_at": "2026-02-11T22:00:21.565784"
     },
     "hungarian": {
       "registered": true,
@@ -24,7 +24,7 @@
         "learning_rate": 0.01,
         "train_split": 0.8
       },
-      "registered_at": "2026-02-11T21:48:58.086731"
+      "registered_at": "2026-02-11T22:00:28.504471"
     }
   },
   "federation": {
@@ -32,8 +32,8 @@
     "current_round": 3,
     "total_rounds": 3,
     "status": "complete",
-    "started_at": "2026-02-11T21:49:09.497436",
-    "completed_at": "2026-02-11T21:49:15.217964",
+    "started_at": "2026-02-11T22:03:40.771777",
+    "completed_at": "2026-02-11T22:03:45.469464",
     "history": {
       "rounds": [
         1,
@@ -41,21 +41,21 @@
         3
       ],
       "accuracy": [
-        0.8667,
-        0.8583,
+        0.8917,
+        0.875,
         0.8667
       ],
       "train_loss": [
-        0.5878,
-        0.3811,
-        0.3756
+        0.556,
+        0.3995,
+        0.3768
       ],
       "eval_loss": [
-        0.3845,
-        0.3405,
-        0.3239
+        0.3464,
+        0.3135,
+        0.3443
       ]
     }
   },
-  "last_updated": "2026-02-11T21:49:15.217991"
+  "last_updated": "2026-02-11T22:03:45.469490"
 }

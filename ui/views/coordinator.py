@@ -164,11 +164,11 @@ def render_coordinator():
 
     # ── tabs ──────────────────────────────────────────────────────────────────
     t1 = "🏥 Hospitals" + (f" ({n_reg}/2)" if n_reg < 2 else " ✓")
-    t2 = "📡 Monitor" + (" ●" if is_training else (" ✓" if is_complete else ""))
-    t3 = "📊 Results" + (" ✓" if hist.get("accuracy") else "")
+    t2 = "📊 Results" + (" ✓" if hist.get("accuracy") else "")
+    t3 = "📡 Monitor" + (" ●" if is_training else (" ✓" if is_complete else ""))
     t4 = "🔒 Privacy"
 
-    tab_hosp, tab_monitor, tab_results, tab_privacy = st.tabs([t1, t2, t3, t4])
+    tab_hosp, tab_results, tab_monitor, tab_privacy = st.tabs([t1, t2, t3, t4])
 
     # ── TAB 1: Hospitals ─────────────────────────────────────────────────────
     with tab_hosp:

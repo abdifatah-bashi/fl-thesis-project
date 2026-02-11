@@ -18,22 +18,13 @@ sequenceDiagram
     participant C2 as Client 2 (Hungarian)
 
     Note over Server: Initialize Global Model
-    Server->>C1: Send Global Model Parameters
-    Server->>C2: Send Global Model Parameters
-
-    Note over C1,C2: Client Training Phase
-    rect rgb(200, 220, 240)
-        C1->>C1: Train on Local Data (Cleveland)
-        C2->>C2: Train on Local Data (Hungarian)
-    end
-
-    C1-->>Server: Return Updated Weights
-    C2-->>Server: Return Updated Weights
-
-    Note over Server: Aggregation Phase (FedAvg)
-    Server->>Server: Average Weights -> Update Global Model
-
-    Note over Server,C2: Repeat for N Rounds
+    Server->>C1: Send Global Model
+    Server->>C2: Send Global Model
+    Note over C1: Train Local
+    Note over C2: Train Local
+    C1-->>Server: Send Updates
+    C2-->>Server: Send Updates
+    Note over Server: Aggregate (FedAvg)
 ```
 
 ## 2. Key Components

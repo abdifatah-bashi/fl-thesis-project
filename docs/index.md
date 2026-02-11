@@ -1,70 +1,102 @@
 ---
 hide:
   - navigation
+  - toc
+  - footer
 ---
 
-# Federated Learning Thesis Project
+<section class="fl-hero" markdown>
+<div class="fl-hero-inner" markdown>
 
-A Federated Learning framework for heart disease prediction using Flower (flwr) and PyTorch.
+# The model travels, the data stays put.
 
-## Project Structure
+A **Federated Learning** framework that enables hospitals to collaboratively train heart disease prediction models — without ever sharing a single patient record.
 
-This project follows a standard Python package structure:
+<div class="fl-hero-buttons" markdown>
 
-```
-fl-thesis-project/
-├── src/
-│   └── fl_core/             # Core FL framework package
-│       ├── client.py        # Client implementation
-│       ├── server.py        # Server strategy
-│       ├── model.py         # PyTorch model definition
-│       ├── data_loader.py   # Data loading and preprocessing
-│       └── utils.py         # Utility functions
-├── scripts/
-│   ├── download_data.py     # Script to download UCI Heart Disease dataset
-│   └── run_client.py        # Script to run a single client
-├── run_simulation.py        # Main simulation entry point
-├── pyproject.toml           # Project configuration and dependencies
-└── requirements.txt         # Python dependencies
-```
+[Get Started :material-arrow-right:](getting-started.md){ .md-button .md-button--primary .fl-btn-hero }
+[Explore Concepts](concepts/index.md){ .md-button .fl-btn-hero }
 
-## Installation
+</div>
 
-1.  **Create a virtual environment** (optional but recommended):
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
+</div>
+</section>
 
-2.  **Install the package in editable mode**:
-    ```bash
-    pip install -e .
-    ```
-    This will install all dependencies listed in `pyproject.toml` and `requirements.txt`.
+<section class="fl-features" markdown>
+<div class="fl-grid" markdown>
 
-## Usage
+<div class="fl-card animate-on-scroll" markdown>
 
-### 1. Download Data
-First, download the required dataset:
+### :material-shield-lock-outline: Privacy by Design
+
+Patient data **never leaves** the hospital. Only mathematical model parameters are transmitted across the network — raw records stay local.
+
+</div>
+
+<div class="fl-card animate-on-scroll" markdown>
+
+### :material-hospital-building: Cross-Hospital Collaboration
+
+Cleveland Clinic and Hungarian Institute jointly train a shared AI model across institutional boundaries — no data sharing required.
+
+</div>
+
+<div class="fl-card animate-on-scroll" markdown>
+
+### :material-brain: Neural Intelligence
+
+A PyTorch neural network learns heart disease patterns from distributed, heterogeneous data using the Flower framework.
+
+</div>
+
+</div>
+</section>
+
+<section class="fl-stats" markdown>
+<div class="fl-stats-grid" markdown>
+
+<div class="fl-stat animate-on-scroll" markdown>
+<div class="fl-stat-number" data-target="2">0</div>
+<div class="fl-stat-label">Hospitals</div>
+</div>
+
+<div class="fl-stat animate-on-scroll" markdown>
+<div class="fl-stat-number" data-target="590">0</div>
+<div class="fl-stat-label">Patients</div>
+</div>
+
+<div class="fl-stat animate-on-scroll" markdown>
+<div class="fl-stat-number" data-target="13">0</div>
+<div class="fl-stat-label">Medical Features</div>
+</div>
+
+<div class="fl-stat animate-on-scroll" markdown>
+<div class="fl-stat-number" data-target="0">0</div>
+<div class="fl-stat-label">Records Shared</div>
+</div>
+
+</div>
+</section>
+
+<section class="fl-quickstart" markdown>
+<div class="fl-quickstart-inner" markdown>
+
+## Run it in 3 commands
+
+<p class="fl-section-sub">From zero to a running federated simulation — in seconds.</p>
+
 ```bash
+# Install the framework
+pip install -e .
+
+# Download the UCI Heart Disease dataset
 python scripts/download_data.py
-```
 
-### 2. Run Simulation
-Run the full Federated Learning simulation (Server + 2 Clients):
-```bash
+# Launch the full federated simulation
 python run_simulation.py
 ```
 
-### 3. Run Individual Components (Advanced)
-You can also run clients manually if you have a running server:
-```bash
-python scripts/run_client.py 0  # Run client 0 (Cleveland)
-python scripts/run_client.py 1  # Run client 1 (Hungarian)
-```
+[Full setup guide :material-arrow-right:](getting-started.md){ .md-button .md-button--primary }
 
-## Features
-- **Federated Learning**: Uses Flower framework.
-- **Privacy**: Data remains on local clients; only model updates are shared.
-- **Model**: Neural Network for heart disease classification.
-- **Data**: UCI Heart Disease dataset (Cleveland, Hungarian, etc.).
+</div>
+</section>

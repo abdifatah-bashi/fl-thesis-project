@@ -4,58 +4,42 @@
       "registered": true,
       "num_patients": 303,
       "disease_rate": 0.45874587458745875,
-      "status": "done",
+      "status": "ready",
       "config": {
         "epochs_per_round": 1,
         "batch_size": 32,
         "learning_rate": 0.01,
         "train_split": 0.8
       },
-      "registered_at": "2026-02-11T22:10:11.148601"
+      "registered_at": "2026-02-12T11:56:06.013766"
     },
     "hungarian": {
-      "registered": true,
-      "num_patients": 294,
-      "disease_rate": 0.36054421768707484,
-      "status": "done",
+      "registered": false,
+      "num_patients": 0,
+      "disease_rate": 0.0,
+      "status": "waiting",
       "config": {
         "epochs_per_round": 1,
         "batch_size": 32,
         "learning_rate": 0.01,
         "train_split": 0.8
       },
-      "registered_at": "2026-02-11T22:10:16.912537"
+      "registered_at": null
     }
   },
   "federation": {
-    "active": true,
-    "current_round": 3,
+    "active": false,
+    "current_round": 0,
     "total_rounds": 3,
-    "status": "complete",
-    "started_at": "2026-02-11T22:10:23.813638",
-    "completed_at": "2026-02-11T22:10:28.572030",
+    "status": "waiting",
+    "started_at": null,
+    "completed_at": null,
     "history": {
-      "rounds": [
-        1,
-        2,
-        3
-      ],
-      "accuracy": [
-        0.875,
-        0.8333,
-        0.8417
-      ],
-      "train_loss": [
-        0.5725,
-        0.4089,
-        0.3548
-      ],
-      "eval_loss": [
-        0.3805,
-        0.316,
-        0.3469
-      ]
+      "rounds": [],
+      "accuracy": [],
+      "train_loss": [],
+      "eval_loss": []
     }
   },
-  "last_updated": "2026-02-11T22:10:28.572056"
+  "last_updated": "2026-02-12T11:56:06.013851"
 }

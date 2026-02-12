@@ -8,11 +8,20 @@ import plotly.express as px
 
 
 # ── colour palette ────────────────────────────────────────────────────────────
-C_BLUE   = "#1f77b4"
-C_GREEN  = "#2ca02c"
-C_ORANGE = "#ff7f0e"
-C_RED    = "#d62728"
-C_PURPLE = "#9467bd"
+C_INDIGO = "#6366f1"
+C_VIOLET = "#8b5cf6"
+C_GREEN  = "#10b981"
+C_AMBER  = "#f59e0b"
+C_ROSE   = "#f43f5e"
+C_SLATE  = "#475569"
+
+_LAYOUT_COMMON = dict(
+    template="plotly_white",
+    font=dict(family="Inter, -apple-system, sans-serif", color="#475569"),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    margin=dict(l=40, r=20, t=50, b=40),
+)
 
 
 def create_accuracy_chart(rounds: List[int], accuracy: List[float]) -> go.Figure:
@@ -22,23 +31,27 @@ def create_accuracy_chart(rounds: List[int], accuracy: List[float]) -> go.Figure
         x=rounds, y=[a * 100 for a in accuracy],
         mode="lines+markers",
         name="Accuracy",
-        line=dict(color=C_GREEN, width=3),
-        marker=dict(size=10, color=C_GREEN),
+        line=dict(color=C_INDIGO, width=3, shape="spline"),
+        marker=dict(size=9, color=C_INDIGO, line=dict(width=2, color="#fff")),
+        fill="tozeroy",
+        fillcolor="rgba(99,102,241,.06)",
     ))
     fig.update_layout(
-        title="Global Model Accuracy per Round",
+        title=dict(text="Global Accuracy", font=dict(size=14, color="#1e293b")),
         xaxis_title="Round",
         yaxis_title="Accuracy (%)",
-        yaxis=dict(range=[0, 100]),
-        template="plotly_white",
-        height=350,
-        margin=dict(l=40, r=20, t=50, b=40),
+        yaxis=dict(range=[0, 100], gridcolor="#f1f3f9"),
+        xaxis=dict(gridcolor="#f1f3f9"),
+        height=340,
+        **_LAYOUT_COMMON,
     )
     if rounds:
         fig.add_annotation(
             x=rounds[-1], y=accuracy[-1] * 100,
-            text=f"{accuracy[-1]*100:.1f}%",
-            showarrow=True, arrowhead=2, bgcolor=C_GREEN, font=dict(color="white"),
+            text=f"<b>{accuracy[-1]*100:.1f}%</b>",
+            showarrow=True, arrowhead=0, arrowcolor=C_INDIGO,
+            bgcolor=C_INDIGO, font=dict(color="white", size=12),
+            bordercolor=C_INDIGO, borderpad=4, borderwidth=0,
         )
     return fig
 
@@ -54,24 +67,30 @@ def create_loss_chart(
         fig.add_trace(go.Scatter(
             x=rounds[:len(train_loss)], y=train_loss,
             mode="lines+markers", name="Training Loss",
-            line=dict(color=C_ORANGE, width=3),
-            marker=dict(size=8),
+            line=dict(color=C_AMBER, width=3, shape="spline"),
+            marker=dict(size=7, line=dict(width=2, color="#fff")),
         ))
     if eval_loss:
         fig.add_trace(go.Scatter(
             x=rounds[:len(eval_loss)], y=eval_loss,
             mode="lines+markers", name="Evaluation Loss",
-            line=dict(color=C_RED, width=3, dash="dash"),
-            marker=dict(size=8),
+            line=dict(color=C_ROSE, width=3, dash="dot", shape="spline"),
+            marker=dict(size=7, line=dict(width=2, color="#fff")),
         ))
     fig.update_layout(
-        title="Loss per Round",
+        title=dict(text="Loss per Round", font=dict(size=14, color="#1e293b")),
         xaxis_title="Round",
         yaxis_title="Loss",
-        template="plotly_white",
-        height=350,
-        margin=dict(l=40, r=20, t=50, b=40),
-        legend=dict(x=0.7, y=0.95),
+        yaxis=dict(gridcolor="#f1f3f9"),
+        xaxis=dict(gridcolor="#f1f3f9"),
+        height=340,
+        legend=dict(
+            x=0.65, y=0.95,
+            bgcolor="rgba(255,255,255,.8)",
+            bordercolor="#e8ecf4", borderwidth=1,
+            font=dict(size=11),
+        ),
+        **_LAYOUT_COMMON,
     )
     return fig
 
@@ -87,21 +106,25 @@ def create_hospital_distribution_chart(hospitals: Dict[str, Any]) -> go.Figure:
         fig = go.Figure()
         fig.add_annotation(
             text="No hospitals registered yet",
-            x=0.5, y=0.5, showarrow=False, font=dict(size=16),
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="#94a3b8"),
         )
-        fig.update_layout(height=300, template="plotly_white")
+        fig.update_layout(height=280, **_LAYOUT_COMMON)
         return fig
     fig = go.Figure(go.Pie(
         labels=names, values=counts,
-        marker=dict(colors=[C_BLUE, C_ORANGE]),
+        marker=dict(
+            colors=[C_INDIGO, C_VIOLET],
+            line=dict(color="#fff", width=3),
+        ),
         textinfo="label+percent+value",
-        hole=0.4,
+        textfont=dict(size=12),
+        hole=0.45,
     ))
     fig.update_layout(
-        title="Patient Distribution by Hospital",
-        template="plotly_white",
-        height=300,
-        margin=dict(l=20, r=20, t=50, b=20),
+        title=dict(text="Patient Distribution", font=dict(size=14, color="#1e293b")),
+        height=280,
+        **_LAYOUT_COMMON,
     )
     return fig
 
@@ -112,19 +135,22 @@ def create_metrics_gauge(value: float, title: str, fmt: str = "{:.1f}%") -> go.F
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=display,
-        title={"text": title},
+        title={"text": title, "font": {"size": 13, "color": "#475569"}},
         gauge={
-            "axis": {"range": [0, 100] if "%" in fmt else [0, 1]},
-            "bar": {"color": C_GREEN},
+            "axis": {"range": [0, 100] if "%" in fmt else [0, 1], "tickcolor": "#e8ecf4"},
+            "bar": {"color": C_INDIGO},
+            "bgcolor": "#f1f3f9",
+            "borderwidth": 0,
             "steps": [
-                {"range": [0, 50], "color": "#ffcccc"},
-                {"range": [50, 75], "color": "#fff0cc"},
-                {"range": [75, 100], "color": "#ccffcc"},
+                {"range": [0, 50],  "color": "#fef2f2"},
+                {"range": [50, 75], "color": "#fffbeb"},
+                {"range": [75, 100], "color": "#ecfdf5"},
             ],
         },
-        number={"suffix": "%" if "%" in fmt else "", "valueformat": ".1f"},
+        number={"suffix": "%" if "%" in fmt else "", "valueformat": ".1f",
+                "font": {"size": 28, "color": "#1e293b", "family": "Inter"}},
     ))
-    fig.update_layout(height=250, margin=dict(l=20, r=20, t=50, b=20))
+    fig.update_layout(height=220, **_LAYOUT_COMMON)
     return fig
 
 
@@ -134,15 +160,19 @@ def create_round_progress(current: int, total: int) -> go.Figure:
     fig = go.Figure(go.Bar(
         x=[pct], y=["Progress"],
         orientation="h",
-        marker_color=C_BLUE,
+        marker=dict(
+            color=C_INDIGO,
+            line=dict(width=0),
+        ),
         text=[f"Round {current}/{total} ({pct:.0f}%)"],
         textposition="inside",
+        textfont=dict(color="white", size=12, family="Inter"),
     ))
     fig.update_layout(
-        xaxis=dict(range=[0, 100], title=""),
+        xaxis=dict(range=[0, 100], title="", showgrid=False),
         yaxis=dict(visible=False),
-        height=80,
-        margin=dict(l=10, r=10, t=10, b=10),
-        template="plotly_white",
+        height=64,
+        **_LAYOUT_COMMON,
+        margin=dict(l=10, r=10, t=6, b=6),
     )
     return fig

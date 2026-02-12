@@ -28,10 +28,10 @@ EXPECTED_COLS = ["age","sex","cp","trestbps","chol","fbs","restecg",
 
 def _pill(status: str) -> str:
     m = {
-        "waiting":  '<span class="pill pill-waiting">⏸ Waiting</span>',
-        "ready":    '<span class="pill pill-ready">✓ Ready</span>',
-        "training": '<span class="pill pill-training">⟳ Training</span>',
-        "done":     '<span class="pill pill-done">✓ Complete</span>',
+        "waiting":  '<span class="pill pill-waiting">Waiting</span>',
+        "ready":    '<span class="pill pill-ready">Ready</span>',
+        "training": '<span class="pill pill-training">Training</span>',
+        "done":     '<span class="pill pill-done">Complete</span>',
     }
     return m.get(status, f'<span class="pill pill-waiting">{status}</span>')
 
@@ -46,49 +46,57 @@ def _validate_df(df):
 
 def _progress_pills(data_loaded: bool, is_registered: bool,
                     is_training: bool, is_complete: bool) -> None:
-    """Step progress tracker — numbered circles + connecting lines.
-    Classic stepper pattern: visually distinct from tabs/buttons.
-    Not clickable. Rendered outside st.columns() — no clipping risk.
-    """
+    """Modern step progress tracker — clean numbered capsules + connecting lines."""
     step_defs = [
         ("Load Data", data_loaded or is_registered),
         ("Register",  is_registered),
         ("Training",  is_complete),
     ]
-    # Active = first step that isn't done yet
     active_idx = next((i for i, (_, done) in enumerate(step_defs) if not done), None)
 
     circles, lines = [], []
     for i, (label, done) in enumerate(step_defs):
         active = (i == active_idx)
         if done:
-            # filled green circle, ✓
-            c_bg, c_brd, c_txt, c_col = "#d1fae5", "2px solid #6ee7b7",  "✓",       "#065f46"
-            l_col, l_wt = "#1e293b", "600"
+            c_bg   = "linear-gradient(135deg,#d1fae5,#a7f3d0)"
+            c_brd  = "1px solid #6ee7b7"
+            c_txt  = "&#10003;"
+            c_col  = "#059669"
+            l_col  = "#1e293b"
+            l_wt   = "600"
         elif active:
-            # solid blue circle, white number — clearly "current", not a button
-            c_bg, c_brd, c_txt, c_col = "#3b82f6", "2px solid #3b82f6",  str(i+1),  "#ffffff"
-            l_col, l_wt = "#1d4ed8", "700"
+            c_bg   = "linear-gradient(135deg,#6366f1,#8b5cf6)"
+            c_brd  = "none"
+            c_txt  = str(i + 1)
+            c_col  = "#ffffff"
+            l_col  = "#4f46e5"
+            l_wt   = "700"
         else:
-            # hollow gray circle, gray number
-            c_bg, c_brd, c_txt, c_col = "#f8fafc", "2px solid #e2e8f0",  str(i+1),  "#94a3b8"
-            l_col, l_wt = "#94a3b8", "400"
+            c_bg   = "#f1f3f9"
+            c_brd  = "1px solid #e2e5ef"
+            c_txt  = str(i + 1)
+            c_col  = "#b0b8c9"
+            l_col  = "#b0b8c9"
+            l_wt   = "500"
+
+        shadow = "box-shadow:0 3px 10px rgba(99,102,241,.25);" if active else ""
 
         circles.append(
             f'<div style="display:flex;flex-direction:column;align-items:center;'
             f'gap:8px;min-width:90px;flex:0 0 auto">'
-            f'<div style="width:40px;height:40px;border-radius:50%;background:{c_bg};'
+            f'<div style="width:40px;height:40px;border-radius:12px;background:{c_bg};'
             f'border:{c_brd};display:flex;align-items:center;justify-content:center;'
-            f'font-size:1rem;font-weight:700;color:{c_col}">{c_txt}</div>'
-            f'<span style="font-size:.9rem;font-weight:{l_wt};color:{l_col};'
-            f'white-space:nowrap;letter-spacing:.01em">{label}</span>'
-            f'</div>'
+            f'font-size:.95rem;font-weight:800;color:{c_col};{shadow}'
+            f'transition:all .3s">{c_txt}</div>'
+            f'<span style="font-size:.82rem;font-weight:{l_wt};color:{l_col};'
+            f'white-space:nowrap">{label}</span></div>'
         )
         if i < len(step_defs) - 1:
-            line_col = "#6ee7b7" if done else "#e2e8f0"
+            line_col = "#86efac" if done else "#e2e5ef"
             lines.append(
-                f'<div style="flex:1;height:2px;background:{line_col};'
-                f'margin:0 6px;align-self:flex-start;margin-top:19px"></div>'
+                f'<div style="flex:1;height:2px;border-radius:1px;background:{line_col};'
+                f'margin:0 8px;align-self:flex-start;margin-top:19px;'
+                f'transition:background .3s"></div>'
             )
 
     interleaved = []
@@ -98,9 +106,8 @@ def _progress_pills(data_loaded: bool, is_registered: bool,
             interleaved.append(lines[i])
 
     st.markdown(
-        '<p style="font-size:.7rem;font-weight:700;letter-spacing:.1em;'
-        'color:#94a3b8;text-transform:uppercase;margin:16px 0 10px">Progress</p>'
-        '<div style="display:flex;align-items:flex-start;padding:0 0 24px">'
+        '<p class="sec-label">Progress</p>'
+        '<div style="display:flex;align-items:flex-start;padding:0 0 20px">'
         + "".join(interleaved)
         + "</div>",
         unsafe_allow_html=True,
@@ -109,8 +116,8 @@ def _progress_pills(data_loaded: bool, is_registered: bool,
 
 def _next_step(title: str, body: str):
     st.markdown(
-        f'<div class="next-step"><div class="next-step-title">→ Next: {title}</div>'
-        f'<div style="color:#374151;margin-top:4px;font-size:.875rem">{body}</div></div>',
+        f'<div class="next-step"><div class="next-step-title">Next: {title}</div>'
+        f'<div style="color:#475569;margin-top:4px;font-size:.875rem;line-height:1.6">{body}</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -118,8 +125,7 @@ def _next_step(title: str, body: str):
 def _label(text: str):
     """Small all-caps section label."""
     st.markdown(
-        f'<p style="font-size:.7rem;font-weight:700;letter-spacing:.08em;'
-        f'text-transform:uppercase;color:#94a3b8;margin:20px 0 8px">{text}</p>',
+        f'<p class="sec-label">{text}</p>',
         unsafe_allow_html=True,
     )
 
@@ -174,6 +180,11 @@ def render_hospital(hospital_name: str):
     ]
     _active = st.session_state[_TAB_KEY]
 
+    # Segmented tab bar
+    st.markdown(
+        '<div style="display:flex;gap:2px;background:#f1f3f9;border-radius:12px;padding:4px;margin-bottom:24px">',
+        unsafe_allow_html=True,
+    )
     tc0, tc1, tc2, tc3 = st.columns(4)
     for _idx, (_col, _lbl) in enumerate(zip([tc0, tc1, tc2, tc3], _tab_labels)):
         with _col:
@@ -182,10 +193,7 @@ def render_hospital(hospital_name: str):
                          type="primary" if _active == _idx else "secondary"):
                 st.session_state[_TAB_KEY] = _idx
                 st.rerun()
-    st.markdown(
-        '<hr style="margin:2px 0 20px;border:none;border-top:2px solid #e2e8f0">',
-        unsafe_allow_html=True,
-    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════════════════
     # SECTION 0 — Data
@@ -199,10 +207,10 @@ def render_hospital(hospital_name: str):
             col_info, col_btn = st.columns([3, 1], gap="large")
 
             with col_info:
-                st.markdown("#### 🏥 Use Built-in Sample Data")
+                st.markdown("**Use Built-in Sample Data**")
                 st.markdown(
-                    f"Pre-validated **UCI Heart Disease dataset** "
-                    f"for **{display} Hospital** — bundled with this project."
+                    f"Pre-validated UCI Heart Disease dataset "
+                    f"for **{display}** — bundled with this project."
                 )
                 info_preview = load_sample_data_info(hospital_name)
                 if info_preview:
@@ -233,11 +241,12 @@ def render_hospital(hospital_name: str):
 
         # ── SECONDARY: upload ─────────────────────────────────────────────────
         st.markdown(
-            '<div style="display:flex;align-items:center;gap:12px;margin:20px 0 14px">'
-            '<hr style="flex:1;border:none;border-top:1px solid #e2e8f0">'
-            '<span style="color:#94a3b8;font-size:.82rem;white-space:nowrap">'
-            'or upload your own CSV</span>'
-            '<hr style="flex:1;border:none;border-top:1px solid #e2e8f0">'
+            '<div style="display:flex;align-items:center;gap:12px;margin:24px 0 16px">'
+            '<hr style="flex:1;border:none;border-top:1px solid #e8ecf4">'
+            '<span style="color:#b0b8c9;font-size:.78rem;font-weight:600;'
+            'letter-spacing:.04em;white-space:nowrap;text-transform:uppercase">'
+            'or upload your own</span>'
+            '<hr style="flex:1;border:none;border-top:1px solid #e8ecf4">'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -311,13 +320,11 @@ def render_hospital(hospital_name: str):
 
         else:
             st.markdown(
-                '<div style="text-align:center;padding:36px 0 12px;color:#94a3b8">'
-                '<div style="font-size:2rem;margin-bottom:10px">📋</div>'
-                '<div style="font-size:.95rem;font-weight:600;color:#64748b;margin-bottom:4px">'
-                'No data loaded yet</div>'
-                '<div style="font-size:.85rem">'
-                'Click <b>Load Sample Data</b> above or upload a CSV.</div>'
-                '</div>',
+                '<div class="empty-state" style="padding:36px 24px">'
+                '<div class="empty-state-icon">📋</div>'
+                '<div class="empty-state-title">No data loaded yet</div>'
+                '<div class="empty-state-desc">'
+                'Click <b>Load Sample Data</b> above or upload a CSV.</div></div>',
                 unsafe_allow_html=True,
             )
 
@@ -336,7 +343,10 @@ def render_hospital(hospital_name: str):
             )
         else:
             # ── Part A: Hyperparameters ───────────────────────────────────────
-            st.markdown("#### ⚙️ Training Hyperparameters")
+            st.markdown(
+                '<p class="sec-label">Training Hyperparameters</p>',
+                unsafe_allow_html=True,
+            )
             st.caption("Applied locally at this hospital during each FL round.")
 
             if is_training:
@@ -382,7 +392,7 @@ def render_hospital(hospital_name: str):
                 st.caption(f"**{n_tr}** training · **{n_pts - n_tr}** test (from {n_pts} total)")
 
             if not is_training:
-                if st.button("💾 Save Configuration", type="primary", disabled=is_training):
+                if st.button("Save Configuration", type="primary", disabled=is_training):
                     new_cfg = {
                         "epochs_per_round": epochs,
                         "batch_size":       batch,
@@ -396,8 +406,11 @@ def render_hospital(hospital_name: str):
                         st.error("Save failed — please try again.")
 
             # ── Part B: Register ──────────────────────────────────────────────
-            st.divider()
-            st.markdown("#### 📡 Register with the Federation")
+            st.markdown("")
+            st.markdown(
+                '<p class="sec-label">Register with Federation</p>',
+                unsafe_allow_html=True,
+            )
 
             if is_registered:
                 st.success(
@@ -434,7 +447,7 @@ def render_hospital(hospital_name: str):
                     icon="🔒",
                 )
 
-                if st.button("📡 Register with Federation", type="primary", use_container_width=True):
+                if st.button("Register with Federation", type="primary", use_container_width=True):
                     with st.spinner("Registering…"):
                         if src == "sample":
                             from src.data_loader import load_hospital_data
@@ -485,7 +498,7 @@ def render_hospital(hospital_name: str):
             )
             _next_step(
                 "Switch to FL Coordinator",
-                "Use the sidebar <b>← Change Role</b> to open the Coordinator dashboard "
+                "Use the sidebar <b>Switch Role</b> to open the Coordinator dashboard "
                 "and click <b>Start Federated Training</b> once both hospitals are registered.",
             )
 
@@ -535,17 +548,17 @@ def render_hospital(hospital_name: str):
     # SECTION 3 — Privacy
     # ══════════════════════════════════════════════════════════════════════════
     elif _active == 3:
-        st.caption("Informational — explains how FL keeps your patient data private.")
-        st.markdown("#### Privacy Guarantees")
         st.markdown(
-            f"**{display}**'s patient records **never leave this hospital.** "
-            "Only mathematical model updates are shared."
+            f'<p style="font-size:.92rem;color:#64748b;line-height:1.7;margin:4px 0 20px">'
+            f'<b>{display}</b>\'s patient records <b>never leave this hospital</b>. '
+            f'Only mathematical model updates are shared.</p>',
+            unsafe_allow_html=True,
         )
 
         col_priv, col_share = st.columns(2, gap="large")
         with col_priv:
             with st.container(border=True):
-                st.markdown("##### 🔒 Stays Private")
+                st.markdown("**Stays Private**")
                 for item in [
                     "Individual patient records",
                     "Diagnoses & test results",
@@ -553,11 +566,11 @@ def render_hospital(hospital_name: str):
                     "All raw feature values",
                     "Any personal identifiers",
                 ]:
-                    st.markdown(f"✓ &nbsp; {item}")
+                    st.markdown(f"&check; &nbsp; {item}")
 
         with col_share:
             with st.container(border=True):
-                st.markdown("##### 📤 Shared with Federation")
+                st.markdown("**Shared with Federation**")
                 for item in [
                     "Model **weight updates** (not data)",
                     "Aggregated loss — 1 number/round",
@@ -565,11 +578,11 @@ def render_hospital(hospital_name: str):
                     "Training sample **count** only",
                     "Final global model weights",
                 ]:
-                    st.markdown(f"→ &nbsp; {item}")
+                    st.markdown(f"&rarr; &nbsp; {item}")
 
-        st.divider()
+        st.markdown("")
         with st.container(border=True):
-            st.markdown("##### Why weight updates ≠ patient data")
+            st.markdown("**Why weight updates ≠ patient data**")
             st.markdown(
                 "Weight updates are high-dimensional vectors that encode *how the model changed* — "
                 "not the data it trained on. FedAvg further blends updates from **all hospitals** "

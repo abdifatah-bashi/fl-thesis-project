@@ -34,186 +34,410 @@ if "role" not in st.session_state:
 def _inject_css():
     st.markdown("""
     <style>
-    /* ── Global ── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    /* ── Global Reset ── */
     #MainMenu, footer { visibility: hidden; }
-    .block-container { padding-top: 2.5rem; max-width: 1100px; }
+    html, body, [class*="css"] { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+    .block-container { padding-top: 2rem; max-width: 1120px; }
+    [data-testid="stAppViewContainer"] { background: #fafbfe; }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmer {
+        0%   { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,.15); }
+        50%      { box-shadow: 0 0 0 8px rgba(99,102,241,0); }
+    }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
     /* ── Hero ── */
-    .fl-hero { text-align: center; padding: 32px 0 8px; }
+    .fl-hero {
+        text-align: center; padding: 56px 20px 24px;
+        animation: fadeUp .6s ease-out;
+    }
     .fl-hero-badge {
-        display: inline-block;
-        background: #eff6ff; color: #1d4ed8;
-        border: 1px solid #bfdbfe; border-radius: 20px;
-        padding: 4px 16px; font-size: 12px; font-weight: 600;
-        margin-bottom: 16px; letter-spacing: .04em; text-transform: uppercase;
+        display: inline-flex; align-items: center; gap: 6px;
+        background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+        color: #6366f1; border: 1px solid #c7d2fe; border-radius: 100px;
+        padding: 6px 18px; font-size: 11px; font-weight: 700;
+        margin-bottom: 20px; letter-spacing: .06em; text-transform: uppercase;
     }
     .fl-hero-title {
-        font-size: 2.6rem; font-weight: 800; color: #0f172a;
-        line-height: 1.15; letter-spacing: -.03em; margin-bottom: 12px;
+        font-size: 3rem; font-weight: 900; line-height: 1.1; letter-spacing: -.04em;
+        margin-bottom: 16px;
+        background: linear-gradient(135deg, #0f172a 0%, #4f46e5 50%, #7c3aed 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     .fl-hero-sub {
-        font-size: 1.05rem; color: #64748b; line-height: 1.65; max-width: 580px;
-        margin: 0 auto 32px;
+        font-size: 1.1rem; color: #64748b; line-height: 1.7; max-width: 540px;
+        margin: 0 auto 40px; font-weight: 400;
     }
+
+    /* ── How-it-works flow ── */
+    .hiw-row {
+        display: flex; gap: 0; align-items: flex-start; justify-content: center;
+        margin: 24px 0 16px; animation: fadeUp .6s ease-out .15s both;
+    }
+    .hiw-step { flex: 1; text-align: center; padding: 0 16px; }
+    .hiw-num {
+        width: 44px; height: 44px; border-radius: 14px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff; font-weight: 800; font-size: .95rem;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 10px; box-shadow: 0 4px 12px rgba(99,102,241,.25);
+    }
+    .hiw-label { font-size: .82rem; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+    .hiw-desc  { font-size: .76rem; color: #94a3b8; line-height: 1.5; }
+    .hiw-arrow { padding-top: 18px; color: #c7d2fe; font-size: 1.1rem; font-weight: 300; }
 
     /* ── Role cards ── */
     .role-card {
-        background: #fff; border: 2px solid #e2e8f0; border-radius: 16px;
-        padding: 28px 22px; height: 100%;
-        transition: border-color .18s, box-shadow .18s, transform .18s;
+        background: #fff; border: 1px solid #e8ecf4; border-radius: 20px;
+        padding: 32px 24px; height: 100%; position: relative; overflow: hidden;
+        transition: all .3s cubic-bezier(.4,0,.2,1);
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .role-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa);
+        opacity: 0; transition: opacity .3s;
     }
     .role-card:hover {
-        border-color: #3b82f6; box-shadow: 0 8px 28px rgba(59,130,246,.14);
-        transform: translateY(-3px);
+        border-color: #c7d2fe;
+        box-shadow: 0 20px 40px rgba(99,102,241,.1), 0 4px 12px rgba(0,0,0,.04);
+        transform: translateY(-4px);
     }
-    .role-card-icon { font-size: 2.4rem; margin-bottom: 10px; }
-    .role-card-title { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
-    .role-card-desc  { font-size: .88rem; color: #64748b; line-height: 1.55; }
+    .role-card:hover::before { opacity: 1; }
+    .role-card-icon {
+        width: 52px; height: 52px; border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.6rem; margin-bottom: 16px;
+    }
+    .role-card-icon.coord { background: linear-gradient(135deg, #eef2ff, #e0e7ff); }
+    .role-card-icon.hosp  { background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
+    .role-card-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+    .role-card-desc  { font-size: .85rem; color: #64748b; line-height: 1.6; margin-bottom: 16px; }
     .role-card-tag {
-        display: inline-block; margin-top: 12px;
-        font-size: 11px; font-weight: 600; text-transform: uppercase;
-        letter-spacing: .06em; padding: 3px 10px; border-radius: 20px;
+        display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .08em; padding: 4px 12px; border-radius: 100px;
     }
-    .tag-coord   { background: #eff6ff; color: #2563eb; }
-    .tag-hosp    { background: #f0fdf4; color: #16a34a; }
-
-    /* ── How-it-works row ── */
-    .hiw-row { display: flex; gap: 0; align-items: flex-start; justify-content: center; margin: 16px 0 8px; }
-    .hiw-step { flex: 1; text-align: center; padding: 0 12px; }
-    .hiw-num {
-        width: 36px; height: 36px; border-radius: 50%;
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-        color: #fff; font-weight: 700; font-size: .95rem;
-        display: flex; align-items: center; justify-content: center; margin: 0 auto 8px;
-    }
-    .hiw-label { font-size: .82rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
-    .hiw-desc  { font-size: .78rem; color: #6b7280; line-height: 1.4; }
-    .hiw-arrow { padding-top: 18px; color: #cbd5e1; font-size: 1.3rem; }
+    .tag-coord { background: #eef2ff; color: #6366f1; }
+    .tag-hosp  { background: #ecfdf5; color: #059669; }
 
     /* ── Step wizard ── */
     .step-wizard {
-        display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
-        background: #f8fafc; border: 1px solid #e2e8f0;
-        border-radius: 10px; padding: 10px 16px; margin-bottom: 22px;
+        display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+        background: #fff; border: 1px solid #e8ecf4;
+        border-radius: 14px; padding: 12px 18px; margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.03);
     }
-    .sw-item { display: flex; align-items: center; gap: 6px; padding: 4px 10px;
-               border-radius: 7px; font-size: 13px; font-weight: 500; }
-    .sw-active  { background: #3b82f6; color: #fff; }
-    .sw-done    { color: #16a34a; }
-    .sw-pending { color: #94a3b8; }
-    .sw-arrow   { color: #cbd5e1; font-size: 12px; margin: 0 2px; }
+    .sw-item {
+        display: flex; align-items: center; gap: 6px; padding: 5px 14px;
+        border-radius: 8px; font-size: 13px; font-weight: 600;
+        transition: all .2s;
+    }
+    .sw-active {
+        background: linear-gradient(135deg, #6366f1, #7c3aed);
+        color: #fff; box-shadow: 0 2px 8px rgba(99,102,241,.3);
+    }
+    .sw-done    { color: #059669; }
+    .sw-pending { color: #c0c5d0; }
+    .sw-arrow   { color: #dde0e9; font-size: 12px; margin: 0 2px; }
 
     /* ── Page header ── */
     .page-hdr {
         display: flex; align-items: center; gap: 16px;
-        border-bottom: 2px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 20px;
+        border-bottom: 1px solid #edf0f7; padding-bottom: 16px; margin-bottom: 24px;
     }
-    .page-hdr-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin: 0; }
-    .page-hdr-sub   { font-size: .85rem; color: #64748b; margin: 2px 0 0; }
+    .page-hdr-title { font-size: 1.6rem; font-weight: 800; color: #0f172a; margin: 0; }
+    .page-hdr-sub   { font-size: .85rem; color: #94a3b8; margin: 2px 0 0; font-weight: 400; }
 
     /* ── Next-step callout ── */
     .next-step {
-        background: linear-gradient(135deg,#eff6ff,#f0fdf4);
-        border: 1.5px solid #bfdbfe; border-radius: 12px;
-        padding: 14px 18px; margin-top: 12px; font-size: .9rem;
+        background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+        border: 1px solid #c7d2fe; border-radius: 16px;
+        padding: 16px 20px; margin-top: 14px; font-size: .9rem;
     }
-    .next-step-title { font-weight: 700; color: #1e40af; margin-bottom: 4px; }
+    .next-step-title { font-weight: 700; color: #4f46e5; margin-bottom: 4px; }
 
     /* ── Hospital cards (coordinator) ── */
     .hosp-card {
-        background: #fff; border: 2px solid #e2e8f0; border-radius: 14px;
-        padding: 20px; margin-bottom: 12px;
+        background: #fff; border: 1px solid #e8ecf4; border-radius: 16px;
+        padding: 22px; margin-bottom: 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.03);
+        transition: all .2s ease;
     }
-    .hosp-card.registered { border-color: #86efac; background: #f0fdf4; }
-    .hosp-card.training   { border-color: #93c5fd; background: #eff6ff; }
-    .hosp-card.done       { border-color: #6ee7b7; background: #ecfdf5; }
+    .hosp-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+    .hosp-card.registered {
+        border-color: #a7f3d0;
+        background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    }
+    .hosp-card.training {
+        border-color: #c7d2fe;
+        background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+    }
+    .hosp-card.done {
+        border-color: #6ee7b7;
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    }
 
     /* ── Status pills ── */
     .pill {
-        display: inline-block; padding: 3px 11px;
-        border-radius: 20px; font-size: 11px; font-weight: 700;
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 14px; border-radius: 100px;
+        font-size: 11px; font-weight: 700;
         letter-spacing: .04em; text-transform: uppercase;
     }
-    .pill-waiting  { background: #f1f5f9; color: #64748b; }
-    .pill-ready    { background: #d1fae5; color: #065f46; }
-    .pill-training { background: #dbeafe; color: #1e40af; }
-    .pill-done     { background: #a7f3d0; color: #064e3b; }
-    .pill-error    { background: #fee2e2; color: #991b1b; }
+    .pill-waiting  { background: #f1f5f9; color: #94a3b8; }
+    .pill-ready    { background: #d1fae5; color: #059669; }
+    .pill-training { background: #e0e7ff; color: #4f46e5; }
+    .pill-done     { background: #a7f3d0; color: #047857; }
+    .pill-error    { background: #fee2e2; color: #dc2626; }
 
-    /* ── Custom Tab Buttons ── */
-    .custom-tab-button {
-        padding: 10px 18px;
-        border: none;
-        border-bottom: 3px solid transparent;
-        background: transparent;
-        color: #64748b;
-        font-size: .95rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
+    /* ── Custom tab bar ── */
+    .tab-bar {
+        display: flex; gap: 2px; background: #f1f3f9; border-radius: 12px;
+        padding: 4px; margin-bottom: 24px;
     }
-    .custom-tab-button:hover {
-        color: #1d4ed8;
-        background: #f8fafc;
+    .tab-bar-item {
+        flex: 1; text-align: center; padding: 10px 16px; border-radius: 10px;
+        font-size: .88rem; font-weight: 600; color: #64748b;
+        cursor: pointer; transition: all .2s;
     }
-    .custom-tab-button.active {
-        color: #1d4ed8;
-        font-weight: 600;
-        border-bottom-color: #3b82f6;
+    .tab-bar-item:hover { color: #4f46e5; background: rgba(255,255,255,.5); }
+    .tab-bar-item.active {
+        background: #fff; color: #4f46e5;
+        box-shadow: 0 1px 3px rgba(0,0,0,.08);
     }
-    
-    /* Override Streamlit button styles for tabs */
+
+    /* Override Streamlit button styles for tab buttons */
     div[data-testid="column"] > div > div > button[kind="secondary"] {
-        border: none !important;
-        border-bottom: 3px solid transparent !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-        color: #64748b !important;
-        font-size: .95rem !important;
-        font-weight: 500 !important;
-        padding: 10px 18px !important;
+        border: none !important; border-radius: 10px !important;
+        background: transparent !important; color: #64748b !important;
+        font-size: .88rem !important; font-weight: 600 !important;
+        padding: 10px 16px !important; transition: all .2s !important;
     }
     div[data-testid="column"] > div > div > button[kind="secondary"]:hover {
-        background: #f8fafc !important;
-        color: #1d4ed8 !important;
-        border-bottom-color: transparent !important;
+        background: rgba(99,102,241,.06) !important; color: #4f46e5 !important;
     }
     div[data-testid="column"] > div > div > button[kind="primary"] {
-        border: none !important;
-        border-bottom: 3px solid #3b82f6 !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-        color: #1d4ed8 !important;
-        font-size: .95rem !important;
-        font-weight: 600 !important;
-        padding: 10px 18px !important;
+        border: none !important; border-radius: 10px !important;
+        background: #fff !important; color: #4f46e5 !important;
+        font-size: .88rem !important; font-weight: 700 !important;
+        padding: 10px 16px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,.08) !important;
     }
     div[data-testid="column"] > div > div > button[kind="primary"]:hover {
-        background: #f8fafc !important;
-        color: #1d4ed8 !important;
+        background: #fff !important; color: #4f46e5 !important;
     }
 
-    /* ── Sidebar polish ── */
+    /* ── Sidebar ── */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #f8f9fc 0%, #f1f3f9 100%) !important;
+    }
     [data-testid="stSidebar"] .block-container { padding-top: 1rem; }
 
-    /* ── Primary buttons → blue (overrides Streamlit's default red/orange) ── */
-    button[kind="primary"], .stButton > button[data-testid*="primary"] {
-        background: #3b82f6 !important;
-        border-color: #2563eb !important;
-        color: #fff !important;
-    }
-    button[kind="primary"]:hover, .stButton > button[data-testid*="primary"]:hover {
-        background: #2563eb !important;
-        border-color: #1d4ed8 !important;
-    }
-    /* Streamlit 1.x uses this data-testid */
+    /* ── Primary buttons → indigo gradient ── */
+    button[kind="primary"], .stButton > button[data-testid*="primary"],
     [data-testid="stBaseButton-primary"] {
-        background: #3b82f6 !important;
-        border-color: #2563eb !important;
-        color: #fff !important;
+        background: linear-gradient(135deg, #6366f1, #7c3aed) !important;
+        border: none !important; color: #fff !important;
+        border-radius: 12px !important; font-weight: 600 !important;
+        box-shadow: 0 4px 14px rgba(99,102,241,.25) !important;
+        transition: all .25s cubic-bezier(.4,0,.2,1) !important;
+        letter-spacing: .01em !important;
     }
+    button[kind="primary"]:hover, .stButton > button[data-testid*="primary"]:hover,
     [data-testid="stBaseButton-primary"]:hover {
-        background: #2563eb !important;
+        background: linear-gradient(135deg, #4f46e5, #6d28d9) !important;
+        box-shadow: 0 6px 20px rgba(99,102,241,.35) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* ── Secondary buttons ── */
+    [data-testid="stBaseButton-secondary"] {
+        border: 1px solid #e2e5ef !important; border-radius: 12px !important;
+        background: #fff !important; color: #475569 !important;
+        font-weight: 600 !important;
+        transition: all .2s !important;
+    }
+    [data-testid="stBaseButton-secondary"]:hover {
+        border-color: #c7d2fe !important; color: #4f46e5 !important;
+        background: #fafbff !important;
+    }
+
+    /* ── Metric cards ── */
+    [data-testid="stMetric"] {
+        background: #fff; border: 1px solid #e8ecf4; border-radius: 14px;
+        padding: 16px 18px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,.03);
+        transition: all .2s;
+    }
+    [data-testid="stMetric"]:hover { box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+    [data-testid="stMetricLabel"] {
+        font-size: .75rem !important; font-weight: 700 !important;
+        text-transform: uppercase !important; letter-spacing: .06em !important;
+        color: #94a3b8 !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem !important; font-weight: 800 !important;
+        color: #1e293b !important;
+    }
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px; background: #f1f3f9; border-radius: 12px; padding: 4px;
+        border-bottom: none !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px !important; padding: 10px 20px !important;
+        font-weight: 600 !important; font-size: .88rem !important;
+        color: #64748b !important; border-bottom: none !important;
+        background: transparent !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background: #fff !important; color: #4f46e5 !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,.08) !important;
+        border-bottom: none !important;
+    }
+    .stTabs [data-baseweb="tab-highlight"] { display: none !important; }
+    .stTabs [data-baseweb="tab-border"] { display: none !important; }
+
+    /* ── Info/Warning/Success ── */
+    [data-testid="stAlert"] {
+        border-radius: 14px !important; border-left: 4px solid !important;
+        font-size: .9rem !important;
+    }
+
+    /* ── Expander ── */
+    [data-testid="stExpander"] {
+        border: 1px solid #e8ecf4 !important; border-radius: 14px !important;
+        background: #fff !important;
+    }
+
+    /* ── Dataframes ── */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #e8ecf4 !important; border-radius: 14px !important;
+        overflow: hidden;
+    }
+
+    /* ── Progress bar ── */
+    .stProgress > div > div {
+        border-radius: 100px !important; height: 8px !important;
+    }
+    .stProgress > div > div > div {
+        background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
+        border-radius: 100px !important;
+    }
+
+    /* ── Dividers ── */
+    hr { border-color: #edf0f7 !important; opacity: .6; }
+
+    /* ── Container borders ── */
+    [data-testid="stVerticalBlock"] > div[data-testid="element-container"] > div > div[style*="border"] {
+        border-radius: 16px !important;
+        border-color: #e8ecf4 !important;
+    }
+
+    /* ── Download button ── */
+    [data-testid="stDownloadButton"] button {
+        border: 1px solid #e2e5ef !important; border-radius: 12px !important;
+        background: #fff !important; color: #475569 !important;
+        font-weight: 600 !important; transition: all .2s !important;
+    }
+    [data-testid="stDownloadButton"] button:hover {
+        border-color: #c7d2fe !important; color: #4f46e5 !important;
+        background: #fafbff !important;
+    }
+
+    /* ── Section label ── */
+    .sec-label {
+        font-size: .7rem; font-weight: 700; letter-spacing: .1em;
+        text-transform: uppercase; color: #b0b8c9; margin: 20px 0 10px;
+    }
+
+    /* ── Glass card ── */
+    .glass-card {
+        background: rgba(255,255,255,.85); backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,.5); border-radius: 20px;
+        padding: 28px; box-shadow: 0 4px 24px rgba(0,0,0,.04);
+        transition: all .3s cubic-bezier(.4,0,.2,1);
+    }
+    .glass-card:hover {
+        box-shadow: 0 8px 32px rgba(99,102,241,.08);
+        transform: translateY(-2px);
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+        text-align: center; padding: 56px 24px;
+        animation: fadeUp .5s ease-out;
+    }
+    .empty-state-icon {
+        width: 72px; height: 72px; border-radius: 20px;
+        background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.8rem; margin: 0 auto 18px;
+    }
+    .empty-state-title {
+        font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;
+    }
+    .empty-state-desc {
+        font-size: .9rem; color: #94a3b8; max-width: 380px; margin: 0 auto; line-height: 1.6;
+    }
+
+    /* ── Sidebar role chip ── */
+    .role-chip {
+        display: flex; align-items: center; gap: 10px;
+        background: #fff; border: 1px solid #e8ecf4; border-radius: 12px;
+        padding: 10px 14px; margin: 4px 0 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.03);
+    }
+    .role-chip-icon {
+        width: 36px; height: 36px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1rem;
+    }
+    .role-chip-icon.coord { background: linear-gradient(135deg, #eef2ff, #e0e7ff); }
+    .role-chip-icon.hosp  { background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
+    .role-chip-name { font-size: .88rem; font-weight: 700; color: #1e293b; }
+
+    /* ── Sidebar federation ── */
+    .fed-hosp-row {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 0; font-size: .85rem;
+    }
+    .fed-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+    }
+    .fed-dot.active { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,.4); }
+    .fed-dot.inactive { background: #d1d5db; }
+
+    /* ── Status banner ── */
+    .status-banner {
+        border-radius: 14px; padding: 14px 18px;
+        font-weight: 600; font-size: .9rem;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .status-running {
+        background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+        border: 1px solid #c7d2fe; color: #4f46e5;
+    }
+    .status-waiting {
+        background: linear-gradient(135deg, #fff7ed, #fffbeb);
+        border: 1px solid #fed7aa; color: #c2410c;
+    }
+    .status-complete {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        border: 1px solid #86efac; color: #047857;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -228,71 +452,104 @@ def render_sidebar():
 
     with st.sidebar:
         # Branding
-        st.markdown("### 🏥 FL Simulation")
-        st.caption("Multi-Hospital Federated Learning")
-        st.divider()
+        st.markdown(
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">'
+            '<div style="width:36px;height:36px;border-radius:10px;'
+            'background:linear-gradient(135deg,#6366f1,#8b5cf6);'
+            'display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff">FL</div>'
+            '<div><div style="font-size:.95rem;font-weight:800;color:#0f172a;letter-spacing:-.02em">'
+            'FL Simulation</div>'
+            '<div style="font-size:.7rem;color:#94a3b8;font-weight:500">Multi-Hospital</div>'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<hr style="margin:12px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
 
         # Role chip
         if role:
             LABELS = {
-                "coordinator": ("🌐", "FL Coordinator"),
-                "cleveland":   ("🏥", "Cleveland Hospital"),
-                "hungarian":   ("🏥", "Hungarian Hospital"),
+                "coordinator": ("🌐", "FL Coordinator", "coord"),
+                "cleveland":   ("🏥", "Cleveland Hospital", "hosp"),
+                "hungarian":   ("🏥", "Hungarian Hospital", "hosp"),
             }
-            icon, label = LABELS.get(role, ("", role.capitalize()))
-            st.markdown(f"**Active role**")
-            st.markdown(f"### {icon} {label}")
-            if st.button("← Change Role", use_container_width=True, type="primary"):
+            icon, label, chip_cls = LABELS.get(role, ("", role.capitalize(), "hosp"))
+            st.markdown(
+                '<p style="font-size:.68rem;font-weight:700;letter-spacing:.08em;'
+                'text-transform:uppercase;color:#b0b8c9;margin:0 0 6px">Active Role</p>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<div class="role-chip">'
+                f'<div class="role-chip-icon {chip_cls}">{icon}</div>'
+                f'<div class="role-chip-name">{label}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Switch Role", use_container_width=True):
                 st.session_state.role = None
                 st.rerun()
         else:
-            st.markdown("*No role selected — choose one below.*")
+            st.markdown(
+                '<p style="font-size:.85rem;color:#94a3b8;font-style:italic;margin:4px 0 8px">'
+                'No role selected</p>',
+                unsafe_allow_html=True,
+            )
 
-        st.divider()
+        st.markdown('<hr style="margin:12px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
 
         # Federation status
-        st.markdown("**Federation**")
+        st.markdown(
+            '<p style="font-size:.68rem;font-weight:700;letter-spacing:.08em;'
+            'text-transform:uppercase;color:#b0b8c9;margin:0 0 10px">Federation</p>',
+            unsafe_allow_html=True,
+        )
         registered = [n for n, h in hospitals.items() if h.get("registered")]
         n_reg = len(registered)
 
-        # Hospital pills
         for name in ("cleveland", "hungarian"):
             h = hospitals[name]
-            if h.get("registered"):
-                st.markdown(f"✅ **{name.capitalize()}** — {h['num_patients']} pts")
-            else:
-                st.markdown(f"⚪ *{name.capitalize()} — not joined*")
+            is_active = h.get("registered")
+            dot_cls = "active" if is_active else "inactive"
+            pts_str = f" · {h['num_patients']} pts" if is_active else ""
+            st.markdown(
+                f'<div class="fed-hosp-row">'
+                f'<div class="fed-dot {dot_cls}"></div>'
+                f'<span style="font-weight:600;color:{"#1e293b" if is_active else "#94a3b8"}">'
+                f'{name.capitalize()}{pts_str}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-        st.caption(f"Hospitals ready: **{n_reg}/2**")
+        st.caption(f"**{n_reg}** of 2 connected")
 
         # Round progress
         fed_status = fed.get("status", "waiting")
         current    = fed.get("current_round", 0)
         total      = fed.get("total_rounds", 3)
 
-        STATUS_ICON = {
-            "waiting":  "⏳", "training": "🔵", "complete": "✅",
-        }
         s_key = ("complete" if fed_status == "complete"
                  else "training" if ("round" in fed_status or fed_status == "training")
                  else "waiting")
-        emoji = STATUS_ICON.get(s_key, "⏳")
-
-        st.markdown(f"{emoji} **{fed_status.replace('_',' ').title()}**")
+        status_colors = {"complete": "#059669", "training": "#6366f1", "waiting": "#94a3b8"}
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:6px;margin:10px 0 4px">'
+            f'<div style="width:6px;height:6px;border-radius:50%;background:{status_colors.get(s_key,"#94a3b8")}"></div>'
+            f'<span style="font-size:.85rem;font-weight:600;color:#475569">'
+            f'{fed_status.replace("_"," ").title()}</span></div>',
+            unsafe_allow_html=True,
+        )
         if total > 0 and (current > 0 or fed_status not in ("waiting",)):
             st.progress(int(current / total * 100))
             st.caption(f"Round {current} / {total}")
 
-        st.divider()
+        st.markdown('<hr style="margin:12px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
 
-        # Quick guide
-        with st.expander("❓ Quick Guide"):
+        with st.expander("Quick Guide"):
             st.markdown(
-                "**Single window:**\n"
-                "1. Select Cleveland → load data → register\n"
-                "2. Select Hungarian → load data → register\n"
-                "3. Select Coordinator → Start Training\n\n"
-                "**Recommended:** Open 3 tabs at `localhost:8501` and select a different role in each."
+                "1. Select **Cleveland** → load data → register\n"
+                "2. Select **Hungarian** → load data → register\n"
+                "3. Select **Coordinator** → start training\n\n"
+                "Open 3 tabs at `localhost:8501` for the best experience."
             )
 
 
@@ -301,11 +558,11 @@ def render_landing():
     # Hero
     st.markdown("""
     <div class="fl-hero">
-      <div class="fl-hero-badge">🔬 Research Demo</div>
-      <div class="fl-hero-title">Federated Learning<br>Multi-Hospital Simulation</div>
+      <div class="fl-hero-badge">Research Demo</div>
+      <div class="fl-hero-title">Federated Learning<br>Hospital Simulation</div>
       <div class="fl-hero-sub">
-        Train a shared heart disease prediction model across two hospitals —
-        without any patient data ever leaving its source.
+        Train a shared heart-disease prediction model across two hospitals —
+        without patient data ever leaving its source.
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -316,42 +573,46 @@ def render_landing():
       <div class="hiw-step">
         <div class="hiw-num">1</div>
         <div class="hiw-label">Hospitals Join</div>
-        <div class="hiw-desc">Each hospital loads its local patient data and registers with the federation.</div>
+        <div class="hiw-desc">Each hospital loads local patient data and registers with the federation.</div>
       </div>
-      <div class="hiw-arrow">→</div>
+      <div class="hiw-arrow">&rarr;</div>
       <div class="hiw-step">
         <div class="hiw-num">2</div>
         <div class="hiw-label">Local Training</div>
-        <div class="hiw-desc">The coordinator starts training. Each hospital trains on its own private data.</div>
+        <div class="hiw-desc">Each hospital trains privately on its own data.</div>
       </div>
-      <div class="hiw-arrow">→</div>
+      <div class="hiw-arrow">&rarr;</div>
       <div class="hiw-step">
         <div class="hiw-num">3</div>
-        <div class="hiw-label">Secure Aggregation</div>
-        <div class="hiw-desc">Only model weight updates — never raw data — are shared with the coordinator.</div>
+        <div class="hiw-label">Aggregation</div>
+        <div class="hiw-desc">Only weight updates — never raw data — reach the coordinator.</div>
       </div>
-      <div class="hiw-arrow">→</div>
+      <div class="hiw-arrow">&rarr;</div>
       <div class="hiw-step">
         <div class="hiw-num">4</div>
         <div class="hiw-label">Global Model</div>
-        <div class="hiw-desc">The coordinator aggregates updates into a stronger global model. Repeat.</div>
+        <div class="hiw-desc">Updates are merged into a stronger global model. Repeat.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.divider()
+    st.markdown("")
+    st.markdown("")
 
     # Role selection
-    st.markdown("#### Choose your role to get started")
+    st.markdown(
+        '<p class="sec-label" style="text-align:center;margin-bottom:18px">Choose your role</p>',
+        unsafe_allow_html=True,
+    )
     c1, c2, c3 = st.columns(3, gap="large")
 
     with c1:
         st.markdown("""
         <div class="role-card">
-          <div class="role-card-icon">🌐</div>
+          <div class="role-card-icon coord">🌐</div>
           <div class="role-card-title">FL Coordinator</div>
-          <div class="role-card-desc">Oversee the federation — monitor which hospitals are connected,
-          configure training, launch rounds, and analyse aggregated results.</div>
+          <div class="role-card-desc">Oversee the federation — monitor connections,
+          configure training, launch rounds, and view aggregated results.</div>
           <span class="role-card-tag tag-coord">Orchestrator</span>
         </div>
         """, unsafe_allow_html=True)
@@ -363,34 +624,34 @@ def render_landing():
     with c2:
         st.markdown("""
         <div class="role-card">
-          <div class="role-card-icon">🏥</div>
+          <div class="role-card-icon hosp">🏥</div>
           <div class="role-card-title">Cleveland Hospital</div>
-          <div class="role-card-desc">Load the Cleveland UCI heart disease dataset, configure
-          local training hyperparameters, and join the federated session.</div>
+          <div class="role-card-desc">Load the Cleveland UCI heart-disease dataset,
+          configure local hyperparameters, and join the session.</div>
           <span class="role-card-tag tag-hosp">Participant</span>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("")
-        if st.button("Enter as Cleveland", key="sel_clev", use_container_width=True):
+        if st.button("Enter as Cleveland", key="sel_clev", type="primary", use_container_width=True):
             st.session_state.role = "cleveland"
             st.rerun()
 
     with c3:
         st.markdown("""
         <div class="role-card">
-          <div class="role-card-icon">🏥</div>
+          <div class="role-card-icon hosp">🏥</div>
           <div class="role-card-title">Hungarian Hospital</div>
-          <div class="role-card-desc">Load the Hungarian UCI heart disease dataset, configure
-          local training hyperparameters, and join the federated session.</div>
+          <div class="role-card-desc">Load the Hungarian UCI heart-disease dataset,
+          configure local hyperparameters, and join the session.</div>
           <span class="role-card-tag tag-hosp">Participant</span>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("")
-        if st.button("Enter as Hungarian", key="sel_hung", use_container_width=True):
+        if st.button("Enter as Hungarian", key="sel_hung", type="primary", use_container_width=True):
             st.session_state.role = "hungarian"
             st.rerun()
 
-    st.divider()
+    st.markdown("")
 
     # Current federation state (if any hospitals registered)
     state     = load_state()
@@ -399,19 +660,28 @@ def render_landing():
     registered = [n for n, h in hospitals.items() if h.get("registered")]
 
     if registered or fed.get("active"):
-        st.markdown("#### Current Federation State")
+        st.markdown(
+            '<p class="sec-label" style="text-align:center;margin:24px 0 14px">Current Federation</p>',
+            unsafe_allow_html=True,
+        )
         sc1, sc2, sc3, sc4 = st.columns(4)
         clev = hospitals["cleveland"]
         hung = hospitals["hungarian"]
         sc1.metric("Cleveland", f"{clev['num_patients']} pts" if clev["registered"] else "Not joined",
-                   delta="✓ Ready" if clev["status"] == "ready" else None)
+                   delta="Ready" if clev["status"] == "ready" else None)
         sc2.metric("Hungarian", f"{hung['num_patients']} pts" if hung["registered"] else "Not joined",
-                   delta="✓ Ready" if hung["status"] == "ready" else None)
-        sc3.metric("Hospitals Ready", f"{len(registered)} / 2")
+                   delta="Ready" if hung["status"] == "ready" else None)
+        sc3.metric("Connected", f"{len(registered)} / 2")
         sc4.metric("Training", fed.get("status", "waiting").replace("_", " ").title())
 
     else:
-        st.info("**Getting started:** Open this app in **3 browser tabs** and select a different role in each for the full multi-hospital experience.", icon="💡")
+        st.markdown(
+            '<div style="text-align:center;margin-top:12px">'
+            '<p style="font-size:.88rem;color:#94a3b8">'
+            'Open this app in <b>3 browser tabs</b> and select a different role in each '
+            'for the full experience.</p></div>',
+            unsafe_allow_html=True,
+        )
 
 
 # ── main ──────────────────────────────────────────────────────────────────────

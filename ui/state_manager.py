@@ -50,6 +50,7 @@ DEFAULT_STATE: Dict[str, Any] = {
         "status": "waiting",      # waiting | training | complete | error
         "started_at": None,
         "completed_at": None,
+        "celebrated": False,
         "history": {
             "rounds": [],
             "accuracy": [],

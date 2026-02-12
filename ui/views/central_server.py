@@ -1,5 +1,5 @@
 """
-Coordinator Dashboard
+Central Server Dashboard
 
 Workflow:
   Step 1 → Wait for Hospitals  (both register)
@@ -97,7 +97,7 @@ def _hosp_card(name: str, h: dict):
 
 # ── main render ───────────────────────────────────────────────────────────────
 
-def render_coordinator():
+def render_central_server():
     from components.nav import render_page_header
 
     # Load state
@@ -116,35 +116,32 @@ def render_coordinator():
     total_rounds  = fed.get("total_rounds", 3)
     pct           = int(current_round / total_rounds * 100) if total_rounds > 0 else 0
 
-    # Celebrate training completion once per session
+    # Celebrate training completion once (persisted in shared state)
     just_completed = (
         is_complete
-        and not st.session_state.get("_coord_celebrated", False)
+        and not fed.get("celebrated", False)
         and hist.get("accuracy")
     )
     if just_completed:
-        st.session_state["_coord_celebrated"] = True
+        fed["celebrated"] = True
+        save_state(state)
         st.balloons()
 
     # Determine current state
     training_starting = st.session_state.get("training_started", False)
-    
+
     # Clear training_started flag once actual training begins
     if training_active and training_starting:
         del st.session_state["training_started"]
-        training_starting = False  # Update local variable too
-    
-    # Reset celebration flag if state was reset
-    if not is_complete and not training_active and not training_starting:
-        st.session_state.pop("_coord_celebrated", None)
-    
+        training_starting = False
+
     # Auto-refresh while waiting for training to start
     if training_starting and not training_active:
-        time.sleep(0.5)
+        time.sleep(0.2)
         st.rerun()
 
     # ── page header ───────────────────────────────────────────────────────────
-    render_page_header("🌐", "FL Coordinator", "Orchestrate the federated learning session")
+    render_page_header("🖥️", "Central Server", "Orchestrate the federated learning session")
     _render_coord_steps(_coord_step(n_reg, is_training, is_complete))
 
     # ── top status bar ────────────────────────────────────────────────────────
@@ -310,7 +307,7 @@ def render_coordinator():
 
             # Auto-refresh while training
             if is_training:
-                time.sleep(2)
+                time.sleep(1)
                 st.rerun()
 
     # ── TAB 3: Results ───────────────────────────────────────────────────────
@@ -378,7 +375,7 @@ def render_coordinator():
     with tab_privacy:
         st.markdown(
             '<p style="font-size:.95rem;color:#64748b;line-height:1.7;max-width:680px;margin:8px 0 24px">'
-            'The coordinator <b>never sees raw patient data</b>. '
+            'The central server <b>never sees raw patient data</b>. '
             'Only aggregated model weight updates travel over the network.</p>',
             unsafe_allow_html=True,
         )
@@ -393,7 +390,7 @@ def render_coordinator():
 
         with pc2:
             with st.container(border=True):
-                st.markdown("**Shared with Coordinator**")
+                st.markdown("**Shared with Central Server**")
                 for item in ["Model weight **updates** only", "Weighted-avg training loss",
                              "Weighted-avg accuracy", "Sample count per hospital",
                              "Final aggregated model"]:
@@ -405,10 +402,10 @@ def render_coordinator():
             unsafe_allow_html=True,
         )
         steps = [
-            ("1. Distribute",  "Coordinator broadcasts current global model to all hospitals."),
+            ("1. Distribute",  "Central server broadcasts current global model to all hospitals."),
             ("2. Local train", "Each hospital trains privately on local data for N epochs."),
             ("3. Upload",      "Hospitals send back **only** weight deltas — no data."),
-            ("4. FedAvg",      "Coordinator averages deltas (weighted by patient count)."),
+            ("4. FedAvg",      "Central server averages deltas (weighted by patient count)."),
             ("5. Repeat",      "Process repeats for the configured number of rounds."),
         ]
         for title, desc in steps:

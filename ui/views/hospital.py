@@ -162,8 +162,8 @@ def render_hospital(hospital_name: str):
     elif is_registered and not is_training:
         st.success(f"✅ Registered · {h['num_patients']} patients · waiting for training.")
         _next_step(
-            "Open the Coordinator",
-            "Switch to <b>FL Coordinator</b> and click <b>Start Federated Training</b> "
+            "Open the Central Server",
+            "Switch to <b>Central Server</b> and click <b>Start Federated Training</b> "
             "once both hospitals are registered.",
         )
 
@@ -421,7 +421,7 @@ def render_hospital(hospital_name: str):
                 st.caption(f"Registered at: {h.get('registered_at', '—')}")
                 _next_step(
                     "Wait for training to start",
-                    "The coordinator will launch training once all hospitals have registered. "
+                    "The central server will launch training once all hospitals have registered. "
                     "Check the <b>Training</b> tab for live progress.",
                 )
             else:
@@ -485,7 +485,7 @@ def render_hospital(hospital_name: str):
                 "Steps to complete first:\n"
                 "1. **Data** tab — load your patient dataset\n"
                 "2. **Setup** tab — configure and register with the federation\n\n"
-                "Training starts automatically when the coordinator launches a session.",
+                "Training starts automatically when the central server launches a session.",
                 icon="🔒",
             )
 
@@ -493,19 +493,22 @@ def render_hospital(hospital_name: str):
             st.write("")
             st.success(
                 f"**{display} is registered and ready!** "
-                f"Waiting for the coordinator to launch training.",
+                f"Waiting for the central server to launch training.",
                 icon="⏳",
             )
             _next_step(
-                "Switch to FL Coordinator",
-                "Use the sidebar <b>Switch Role</b> to open the Coordinator dashboard "
+                "Switch to Central Server",
+                "Use the sidebar to open the <b>Central Server</b> dashboard "
                 "and click <b>Start Federated Training</b> once both hospitals are registered.",
             )
 
         else:
             if is_complete:
                 st.success("🎉 Training finished! Your updates shaped the global model.")
-                st.balloons()
+                if not fed.get("celebrated", False):
+                    fed["celebrated"] = True
+                    save_state(state)
+                    st.balloons()
             else:
                 st.markdown(
                     f'**Round {current_round} / {total_rounds}** &nbsp; {_pill(status)}',
@@ -541,7 +544,7 @@ def render_hospital(hospital_name: str):
                     }), use_container_width=True, hide_index=True)
 
             if is_training:
-                time.sleep(2)
+                time.sleep(1)
                 st.rerun()
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -586,5 +589,5 @@ def render_hospital(hospital_name: str):
             st.markdown(
                 "Weight updates are high-dimensional vectors that encode *how the model changed* — "
                 "not the data it trained on. FedAvg further blends updates from **all hospitals** "
-                "before the coordinator ever sees them, making reverse-engineering practically impossible."
+                "before the central server ever sees them, making reverse-engineering practically impossible."
             )

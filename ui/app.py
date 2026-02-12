@@ -121,7 +121,7 @@ def _inject_css():
         display: flex; align-items: center; justify-content: center;
         font-size: 1.6rem; margin-bottom: 16px;
     }
-    .role-card-icon.coord { background: linear-gradient(135deg, #eef2ff, #e0e7ff); }
+    .role-card-icon.server { background: linear-gradient(135deg, #eef2ff, #e0e7ff); }
     .role-card-icon.hosp  { background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
     .role-card-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
     .role-card-desc  { font-size: .85rem; color: #64748b; line-height: 1.6; margin-bottom: 16px; }
@@ -129,7 +129,7 @@ def _inject_css():
         display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
         letter-spacing: .08em; padding: 4px 12px; border-radius: 100px;
     }
-    .tag-coord { background: #eef2ff; color: #6366f1; }
+    .tag-server { background: #eef2ff; color: #6366f1; }
     .tag-hosp  { background: #ecfdf5; color: #059669; }
 
     /* ── Step wizard ── */
@@ -168,7 +168,7 @@ def _inject_css():
     }
     .next-step-title { font-weight: 700; color: #4f46e5; margin-bottom: 4px; }
 
-    /* ── Hospital cards (coordinator) ── */
+    /* ── Hospital cards (central server) ── */
     .hosp-card {
         background: #fff; border: 1px solid #e8ecf4; border-radius: 16px;
         padding: 22px; margin-bottom: 14px;
@@ -394,21 +394,49 @@ def _inject_css():
         font-size: .9rem; color: #94a3b8; max-width: 380px; margin: 0 auto; line-height: 1.6;
     }
 
-    /* ── Sidebar role chip ── */
-    .role-chip {
+    /* ── Sidebar role nav ── */
+    .role-nav {
         display: flex; align-items: center; gap: 10px;
-        background: #fff; border: 1px solid #e8ecf4; border-radius: 12px;
-        padding: 10px 14px; margin: 4px 0 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,.03);
+        border-radius: 10px; padding: 8px 12px; margin-bottom: 4px;
+        transition: all .2s;
     }
-    .role-chip-icon {
-        width: 36px; height: 36px; border-radius: 10px;
+    .role-nav.active {
+        background: linear-gradient(135deg, #6366f1, #7c3aed);
+        box-shadow: 0 2px 8px rgba(99,102,241,.3);
+    }
+    .role-nav-icon {
+        width: 30px; height: 30px; border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1rem;
+        font-size: .85rem;
     }
-    .role-chip-icon.coord { background: linear-gradient(135deg, #eef2ff, #e0e7ff); }
-    .role-chip-icon.hosp  { background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
-    .role-chip-name { font-size: .88rem; font-weight: 700; color: #1e293b; }
+    .role-nav-icon.server      { background: #eef2ff; }
+    .role-nav-icon.hosp        { background: #ecfdf5; }
+    .role-nav-icon.server.active { background: rgba(255,255,255,.2); }
+    .role-nav-icon.hosp.active  { background: rgba(255,255,255,.2); }
+    .role-nav-name {
+        font-size: .85rem; font-weight: 700; color: #fff;
+    }
+
+    /* Style inactive role buttons in sidebar to look like nav items */
+    [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
+        text-align: left !important; justify-content: flex-start !important;
+        border: 1px solid transparent !important; border-radius: 10px !important;
+        background: transparent !important; color: #64748b !important;
+        font-weight: 600 !important; font-size: .85rem !important;
+        padding: 8px 12px !important;
+        transition: all .2s !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
+        background: #f1f3f9 !important; color: #4f46e5 !important;
+        border-color: transparent !important;
+    }
+
+    /* Sidebar home button */
+    [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"][kind="secondary"]:first-child {
+        font-weight: 800 !important; font-size: .95rem !important;
+        color: #0f172a !important; letter-spacing: -.02em !important;
+        padding: 6px 4px !important; margin-bottom: 2px !important;
+    }
 
     /* ── Sidebar federation ── */
     .fed-hosp-row {
@@ -444,6 +472,12 @@ def _inject_css():
 
 
 # ── sidebar ──────────────────────────────────────────────────────────────────
+_ROLES = [
+    ("central_server", "🖥️", "Central Server", "server"),
+    ("cleveland",      "🏥", "Cleveland",      "hosp"),
+    ("hungarian",      "🏥", "Hungarian",      "hosp"),
+]
+
 def render_sidebar():
     state     = load_state()
     hospitals = state["hospitals"]
@@ -451,53 +485,43 @@ def render_sidebar():
     role      = st.session_state.role
 
     with st.sidebar:
-        # Branding
+        # Branding — clickable home
+        if st.button("FL Simulation", key="sb_home", use_container_width=True,
+                      help="Back to home"):
+            st.session_state.role = None
+            st.rerun()
+
         st.markdown(
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">'
-            '<div style="width:36px;height:36px;border-radius:10px;'
-            'background:linear-gradient(135deg,#6366f1,#8b5cf6);'
-            'display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff">FL</div>'
-            '<div><div style="font-size:.95rem;font-weight:800;color:#0f172a;letter-spacing:-.02em">'
-            'FL Simulation</div>'
-            '<div style="font-size:.7rem;color:#94a3b8;font-weight:500">Multi-Hospital</div>'
-            '</div></div>',
+            '<p style="font-size:.68rem;font-weight:700;letter-spacing:.08em;'
+            'text-transform:uppercase;color:#b0b8c9;margin:8px 0 6px">Role</p>',
             unsafe_allow_html=True,
         )
-        st.markdown('<hr style="margin:12px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
 
-        # Role chip
-        if role:
-            LABELS = {
-                "coordinator": ("🌐", "FL Coordinator", "coord"),
-                "cleveland":   ("🏥", "Cleveland Hospital", "hosp"),
-                "hungarian":   ("🏥", "Hungarian Hospital", "hosp"),
-            }
-            icon, label, chip_cls = LABELS.get(role, ("", role.capitalize(), "hosp"))
-            st.markdown(
-                '<p style="font-size:.68rem;font-weight:700;letter-spacing:.08em;'
-                'text-transform:uppercase;color:#b0b8c9;margin:0 0 6px">Active Role</p>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f'<div class="role-chip">'
-                f'<div class="role-chip-icon {chip_cls}">{icon}</div>'
-                f'<div class="role-chip-name">{label}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            if st.button("Switch Role", use_container_width=True):
-                st.session_state.role = None
-                st.rerun()
-        else:
-            st.markdown(
-                '<p style="font-size:.85rem;color:#94a3b8;font-style:italic;margin:4px 0 8px">'
-                'No role selected</p>',
-                unsafe_allow_html=True,
-            )
+        # ── always-visible role nav ──────────────────────────────────────────
+        for role_key, icon, label, chip_cls in _ROLES:
+            is_active = role == role_key
+            if is_active:
+                # Active role — highlighted, not clickable
+                st.markdown(
+                    f'<div class="role-nav active">'
+                    f'<div class="role-nav-icon {chip_cls} active">{icon}</div>'
+                    f'<div class="role-nav-name">{label}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                # Inactive role — clickable button
+                if st.button(
+                    f"{icon}  {label}",
+                    key=f"sb_role_{role_key}",
+                    use_container_width=True,
+                ):
+                    st.session_state.role = role_key
+                    st.rerun()
 
-        st.markdown('<hr style="margin:12px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
+        st.markdown('<hr style="margin:14px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
 
-        # Federation status
+        # ── federation status ────────────────────────────────────────────────
         st.markdown(
             '<p style="font-size:.68rem;font-weight:700;letter-spacing:.08em;'
             'text-transform:uppercase;color:#b0b8c9;margin:0 0 10px">Federation</p>',
@@ -508,13 +532,13 @@ def render_sidebar():
 
         for name in ("cleveland", "hungarian"):
             h = hospitals[name]
-            is_active = h.get("registered")
-            dot_cls = "active" if is_active else "inactive"
-            pts_str = f" · {h['num_patients']} pts" if is_active else ""
+            is_reg = h.get("registered")
+            dot_cls = "active" if is_reg else "inactive"
+            pts_str = f" · {h['num_patients']} pts" if is_reg else ""
             st.markdown(
                 f'<div class="fed-hosp-row">'
                 f'<div class="fed-dot {dot_cls}"></div>'
-                f'<span style="font-weight:600;color:{"#1e293b" if is_active else "#94a3b8"}">'
+                f'<span style="font-weight:600;color:{"#1e293b" if is_reg else "#94a3b8"}">'
                 f'{name.capitalize()}{pts_str}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -542,13 +566,13 @@ def render_sidebar():
             st.progress(int(current / total * 100))
             st.caption(f"Round {current} / {total}")
 
-        st.markdown('<hr style="margin:12px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
+        st.markdown('<hr style="margin:14px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
 
         with st.expander("Quick Guide"):
             st.markdown(
                 "1. Select **Cleveland** → load data → register\n"
                 "2. Select **Hungarian** → load data → register\n"
-                "3. Select **Coordinator** → start training\n\n"
+                "3. Select **Central Server** → start training\n\n"
                 "Open 3 tabs at `localhost:8501` for the best experience."
             )
 
@@ -585,7 +609,7 @@ def render_landing():
       <div class="hiw-step">
         <div class="hiw-num">3</div>
         <div class="hiw-label">Aggregation</div>
-        <div class="hiw-desc">Only weight updates — never raw data — reach the coordinator.</div>
+        <div class="hiw-desc">Only weight updates — never raw data — reach the central server.</div>
       </div>
       <div class="hiw-arrow">&rarr;</div>
       <div class="hiw-step">
@@ -609,16 +633,16 @@ def render_landing():
     with c1:
         st.markdown("""
         <div class="role-card">
-          <div class="role-card-icon coord">🌐</div>
-          <div class="role-card-title">FL Coordinator</div>
+          <div class="role-card-icon server">🖥️</div>
+          <div class="role-card-title">Central Server</div>
           <div class="role-card-desc">Oversee the federation — monitor connections,
           configure training, launch rounds, and view aggregated results.</div>
-          <span class="role-card-tag tag-coord">Orchestrator</span>
+          <span class="role-card-tag tag-server">Server</span>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("")
-        if st.button("Enter as Coordinator", key="sel_coord", type="primary", use_container_width=True):
-            st.session_state.role = "coordinator"
+        if st.button("Enter as Central Server", key="sel_coord", type="primary", use_container_width=True):
+            st.session_state.role = "central_server"
             st.rerun()
 
     with c2:
@@ -693,9 +717,9 @@ role = st.session_state.role
 if role is None:
     render_landing()
 
-elif role == "coordinator":
-    from views.coordinator import render_coordinator
-    render_coordinator()
+elif role == "central_server":
+    from views.central_server import render_central_server
+    render_central_server()
 
 elif role in ("cleveland", "hungarian"):
     from views.hospital import render_hospital

@@ -1,15 +1,13 @@
 """
-FL Runner — Bridge between Streamlit UI and Flower simulation.
+FL Runner — Bridge between Streamlit UI and Flower-compatible training.
 
-Runs the federated learning simulation in a background thread
-and reports per-round progress to the shared state JSON file.
+Runs federated learning (FedAvg) in a background thread using direct
+PyTorch training — no Ray / Flower simulation server overhead.
+Reports per-round progress to the shared state JSON file.
 """
 
 import sys
-import os
 import json
-import logging
-import warnings
 import threading
 from pathlib import Path
 from datetime import datetime
@@ -20,25 +18,14 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).parent))
 
-# ── suppress noisy FL / Ray logs ────────────────────────────────────────────
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-os.environ["RAY_DEDUP_LOGS"] = "0"
-os.environ["RAY_INIT_LOG_TO_DRIVER"] = "0"
-warnings.simplefilter("ignore")
-logging.getLogger("flwr").setLevel(logging.CRITICAL)
-logging.getLogger("ray").setLevel(logging.CRITICAL)
-
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-import flwr as fl
 
 from src.model import HeartDiseaseNet, train_model, test_model
-from src.client import HeartDiseaseClient
-from src.server import weighted_average, weighted_average_loss
 from src.utils import get_parameters, set_parameters
 from state_manager import load_state, save_state
 
@@ -50,67 +37,36 @@ COLUMNS = [
 UPLOAD_DIR = ROOT / "data" / "hospital_uploads"
 
 
-# ── custom FedAvg strategy with progress callbacks ───────────────────────────
+# ── progress persistence helper ──────────────────────────────────────────────
 
-class ProgressFedAvg(fl.server.strategy.FedAvg):
-    """FedAvg that writes per-round metrics to the shared state file."""
-
-    def __init__(self, total_rounds: int, **kwargs):
-        super().__init__(**kwargs)
-        self.total_rounds = total_rounds
-        self._train_losses: List[Tuple[int, float]] = []
-        self._eval_losses: List[Tuple[int, float]] = []
-        self._accuracies: List[Tuple[int, float]] = []
-
-    def _persist(self, server_round: int, phase: str) -> None:
-        try:
-            state = load_state()
-            fed = state["federation"]
-            fed["current_round"] = server_round
-            fed["status"] = f"round_{server_round}_{phase}"
-            hist = fed["history"]
-            hist["rounds"] = [r for r, _ in self._accuracies] or [r for r, _ in self._train_losses]
-            hist["accuracy"] = [round(a, 4) for _, a in self._accuracies]
-            hist["train_loss"] = [round(l, 4) for _, l in self._train_losses]
-            hist["eval_loss"] = [round(l, 4) for _, l in self._eval_losses]
-            if server_round >= self.total_rounds and phase == "evaluated":
-                fed["status"] = "complete"
-                fed["completed_at"] = datetime.now().isoformat()
-                for h in ("cleveland", "hungarian"):
-                    if state["hospitals"][h]["registered"]:
-                        state["hospitals"][h]["status"] = "done"
-            save_state(state)
-        except Exception:
-            pass
-
-    def aggregate_fit(self, server_round, results, failures):
-        aggregated = super().aggregate_fit(server_round, results, failures)
-        if results:
-            total = sum(r.num_examples for _, r in results)
-            loss_sum = sum(r.num_examples * r.metrics.get("loss", 0.0) for _, r in results)
-            self._train_losses.append((server_round, loss_sum / total if total else 0.0))
-        # Mark hospitals as training
-        try:
-            state = load_state()
+def _persist_progress(
+    server_round: int,
+    phase: str,
+    total_rounds: int,
+    train_losses: List[Tuple[int, float]],
+    eval_losses: List[Tuple[int, float]],
+    accuracies: List[Tuple[int, float]],
+) -> None:
+    """Write per-round metrics to the shared state file."""
+    try:
+        state = load_state()
+        fed = state["federation"]
+        fed["current_round"] = server_round
+        fed["status"] = f"round_{server_round}_{phase}"
+        hist = fed["history"]
+        hist["rounds"] = [r for r, _ in accuracies] or [r for r, _ in train_losses]
+        hist["accuracy"] = [round(a, 4) for _, a in accuracies]
+        hist["train_loss"] = [round(l, 4) for _, l in train_losses]
+        hist["eval_loss"] = [round(l, 4) for _, l in eval_losses]
+        if server_round >= total_rounds and phase == "evaluated":
+            fed["status"] = "complete"
+            fed["completed_at"] = datetime.now().isoformat()
             for h in ("cleveland", "hungarian"):
                 if state["hospitals"][h]["registered"]:
-                    state["hospitals"][h]["status"] = "training"
-            save_state(state)
-        except Exception:
-            pass
-        self._persist(server_round, "trained")
-        return aggregated
-
-    def aggregate_evaluate(self, server_round, results, failures):
-        aggregated = super().aggregate_evaluate(server_round, results, failures)
-        if results:
-            total = sum(r.num_examples for _, r in results)
-            loss_sum = sum(r.num_examples * r.loss for _, r in results)
-            acc_sum = sum(r.num_examples * r.metrics.get("accuracy", 0.0) for _, r in results)
-            self._eval_losses.append((server_round, loss_sum / total if total else 0.0))
-            self._accuracies.append((server_round, acc_sum / total if total else 0.0))
-        self._persist(server_round, "evaluated")
-        return aggregated
+                    state["hospitals"][h]["status"] = "done"
+        save_state(state)
+    except Exception:
+        pass
 
 
 # ── data helpers ─────────────────────────────────────────────────────────────
@@ -223,77 +179,91 @@ def save_hospital_config(hospital_name: str, config: Dict) -> bool:
 # ── simulation runner ─────────────────────────────────────────────────────────
 
 def _run_simulation(state_snapshot: Dict, config: Dict) -> None:
-    """Internal: run FL simulation (called from background thread)."""
+    """Run FedAvg training loop directly (no Ray / Flower simulation server)."""
     num_rounds = int(config.get("num_rounds", 3))
+    epochs = int(config.get("epochs_per_round", 1))
+    lr = float(config.get("learning_rate", 0.01))
     hospitals_cfg = state_snapshot.get("hospitals", {})
 
     try:
-        client_data: Dict[str, Tuple] = {}
+        # ── prepare one model per hospital ───────────────────────────────
+        clients: List[Tuple[HeartDiseaseNet, Any, Any, int]] = []
         hospital_order = ["cleveland", "hungarian"]
-        idx = 0
         for name in hospital_order:
             h = hospitals_cfg.get(name, {})
             if h.get("registered", False):
                 tl, tel, n = prepare_hospital_data(name, h.get("config", {}))
-                client_data[str(idx)] = (tl, tel, n)
-                idx += 1
+                model = HeartDiseaseNet()
+                clients.append((model, tl, tel, n))
 
-        num_clients = len(client_data)
-        if num_clients < 2:
+        if len(clients) < 2:
             s = load_state()
             s["federation"]["status"] = "error: need at least 2 registered hospitals"
             save_state(s)
             return
 
-        def client_fn(context: fl.common.Context) -> fl.client.Client:
-            pid = str(context.node_config["partition-id"])
-            tl, tel, n = client_data[pid]
-            return HeartDiseaseClient(int(pid), tl, tel, n).to_client()
+        # ── initialise global parameters from a fresh model ──────────────
+        global_params = get_parameters(HeartDiseaseNet())
 
-        strategy = ProgressFedAvg(
-            total_rounds=num_rounds,
-            fraction_fit=1.0,
-            fraction_evaluate=1.0,
-            min_fit_clients=num_clients,
-            min_evaluate_clients=num_clients,
-            min_available_clients=num_clients,
-            fit_metrics_aggregation_fn=weighted_average_loss,
-            evaluate_metrics_aggregation_fn=weighted_average,
-            on_fit_config_fn=lambda r: {
-                "epochs": int(config.get("epochs_per_round", 1)),
-                "lr": float(config.get("learning_rate", 0.01)),
-                "round": r,
-            },
-        )
+        train_losses: List[Tuple[int, float]] = []
+        eval_losses: List[Tuple[int, float]] = []
+        accuracies: List[Tuple[int, float]] = []
+        accuracy_history: List[Tuple[int, float]] = []
+        training_loss_history: List[Tuple[int, float]] = []
+        distributed_loss_history: List[Tuple[int, float]] = []
 
-        # Mark federation as active
-        s = load_state()
-        s["federation"].update({
-            "active": True,
-            "status": "training",
-            "total_rounds": num_rounds,
-            "started_at": datetime.now().isoformat(),
-        })
-        save_state(s)
+        for rnd in range(1, num_rounds + 1):
+            # ── FIT: each client trains on the global parameters ─────────
+            fit_results: List[Tuple[list, int, float]] = []
+            for model, tl, tel, n in clients:
+                set_parameters(model, global_params)
+                loss = train_model(model, tl, epochs=epochs, lr=lr)
+                fit_results.append((get_parameters(model), n, loss))
 
-        history = fl.simulation.start_simulation(
-            client_fn=client_fn,
-            num_clients=num_clients,
-            config=fl.server.ServerConfig(num_rounds=num_rounds),
-            strategy=strategy,
-            client_resources={"num_cpus": 1, "num_gpus": 0.0},
-        )
+            # ── FedAvg aggregation ───────────────────────────────────────
+            total_n = sum(n for _, n, _ in fit_results)
+            num_layers = len(fit_results[0][0])
+            global_params = [
+                sum(n * params[i] for params, n, _ in fit_results) / total_n
+                for i in range(num_layers)
+            ]
 
-        # Persist final results to the standard results file
+            avg_train_loss = sum(n * l for _, n, l in fit_results) / total_n
+            train_losses.append((rnd, avg_train_loss))
+            training_loss_history.append((rnd, avg_train_loss))
+
+            _persist_progress(rnd, "trained", num_rounds,
+                              train_losses, eval_losses, accuracies)
+
+            # ── EVALUATE: each client evaluates the aggregated model ─────
+            eval_results: List[Tuple[float, int, float]] = []
+            for model, tl, tel, n in clients:
+                set_parameters(model, global_params)
+                loss, acc = test_model(model, tel)
+                eval_results.append((loss, len(tel.dataset), acc))
+
+            total_eval = sum(n for _, n, _ in eval_results)
+            avg_eval_loss = sum(n * l for l, n, _ in eval_results) / total_eval
+            avg_accuracy = sum(n * a for _, n, a in eval_results) / total_eval
+
+            eval_losses.append((rnd, avg_eval_loss))
+            accuracies.append((rnd, avg_accuracy))
+            accuracy_history.append((rnd, avg_accuracy))
+            distributed_loss_history.append((rnd, avg_eval_loss))
+
+            _persist_progress(rnd, "evaluated", num_rounds,
+                              train_losses, eval_losses, accuracies)
+
+        # ── persist final results ────────────────────────────────────────
         results_dir = ROOT / "results"
         results_dir.mkdir(exist_ok=True)
         with open(results_dir / "simulation_results.json", "w") as f:
             json.dump({
-                "accuracy": history.metrics_distributed.get("accuracy", []),
-                "training_loss": history.metrics_distributed_fit.get("loss", []),
-                "distributed_loss": history.losses_distributed,
+                "accuracy": accuracy_history,
+                "training_loss": training_loss_history,
+                "distributed_loss": distributed_loss_history,
                 "num_rounds": num_rounds,
-                "num_clients": num_clients,
+                "num_clients": len(clients),
             }, f, indent=2)
 
     except Exception as e:
@@ -308,6 +278,21 @@ def _run_simulation(state_snapshot: Dict, config: Dict) -> None:
 def start_simulation_thread(config: Dict) -> threading.Thread:
     """Start the FL simulation in a non-blocking background thread."""
     state_snapshot = load_state()
+
+    # Mark federation active immediately so the UI picks it up
+    # without waiting for data preparation inside the thread.
+    s = load_state()
+    s["federation"].update({
+        "active": True,
+        "status": "training",
+        "total_rounds": int(config.get("num_rounds", 3)),
+        "started_at": datetime.now().isoformat(),
+    })
+    for h in ("cleveland", "hungarian"):
+        if s["hospitals"][h].get("registered"):
+            s["hospitals"][h]["status"] = "training"
+    save_state(s)
+
     t = threading.Thread(
         target=_run_simulation,
         args=(state_snapshot, config),

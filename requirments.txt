@@ -6,7 +6,6 @@ contourpy==1.3.3
 cryptography==44.0.3
 cycler==0.12.1
 filelock==3.20.3
-flwr==1.25.0
 fonttools==4.61.1
 fsspec==2026.1.0
 grpcio==1.76.0
@@ -53,5 +52,4 @@ urllib3==2.6.3
 ucimlrepo
 mkdocs-material
 mkdocstrings[python]
-streamlit>=1.28.0
-plotly>=5.18.0
+flwr==1.25.0

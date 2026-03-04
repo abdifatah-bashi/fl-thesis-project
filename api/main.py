@@ -28,7 +28,8 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from api.state import load, save, reset, GLOBAL_PARAMS, WEIGHTS_DIR
-from api.fl_engine import publish_model, aggregate, SAMPLE_DATA
+from api.aggregation import publish_model, aggregate
+from api.config import SAMPLE_DATA
 
 app = FastAPI(title="FL Central Server", version="1.0")
 

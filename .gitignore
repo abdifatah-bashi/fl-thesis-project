@@ -36,3 +36,6 @@ venv.bak/
 .DS_Store
 
 .claude
+
+# Documentation build (MkDocs)
+site/

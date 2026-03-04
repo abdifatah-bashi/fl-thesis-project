@@ -26,6 +26,16 @@
         "accuracy": 0.8103448152542114
       },
       "last_seen": "2026-03-04T19:23:29.050190"
+    },
+    "budapest": {
+      "rounds_submitted": 1,
+      "num_samples": 236,
+      "metrics": {
+        "train_loss": 0.23210585117340088,
+        "eval_loss": 0.6130017042160034,
+        "accuracy": 0.8103448152542114
+      },
+      "last_seen": "2026-03-04T19:27:20.316424"
     }
   },
   "history": {
@@ -52,5 +62,5 @@
       "eval_loss": []
     }
   },
-  "last_updated": "2026-03-04T19:23:29.050234"
+  "last_updated": "2026-03-04T19:27:20.316469"
 }

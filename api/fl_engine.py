@@ -12,6 +12,7 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset, DataLoader
+from flwr.server.strategy.aggregate import aggregate as flwr_aggregate
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
@@ -202,13 +203,10 @@ def aggregate(num_rounds: int, epochs_per_round: int, learning_rate: float) -> d
             state["clients"][client_name]["last_seen"] = datetime.now().isoformat()
             save(state)
 
-        # Weighted average
-        total = sum(all_samples)
-        weights = [n / total for n in all_samples]
-        aggregated = [
-            sum(w * p[i] for w, p in zip(weights, all_params))
-            for i in range(len(all_params[0]))
-        ]
+        # Flower's FedAvg — weighted average by num_samples
+        # Convert to Flower's expected format: List[Tuple[List[np.ndarray], int]]
+        results = [(params, n) for params, n in zip(all_params, all_samples)]
+        aggregated = flwr_aggregate(results)
 
         # Save new global model
         model = HeartDiseaseNet()

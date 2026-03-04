@@ -243,19 +243,27 @@ export default function HospitalMonitor({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50/80 via-white to-emerald-50/80 text-slate-800">
-      {/* Header */}
-      <header className="bg-white/70 backdrop-blur-xl border-b border-white/40 sticky top-0 z-10 px-6 py-4 flex items-center gap-3 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-        <Link href="/" className="text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1.5 text-sm font-semibold">
-          <ArrowLeft className="w-4 h-4" /> Home
-        </Link>
-        <span className="text-slate-300">/</span>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-            <Activity className="w-4 h-4" />
+      {/* Premium Edge-to-Edge Navigation */}
+      <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-2xl border-b border-indigo-50/80 shadow-[0_8px_32px_rgba(30,27,75,0.04)] px-6 sm:px-10 py-4 flex items-center justify-between transition-all duration-300">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="group flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all">
+            <ArrowLeft className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:-translate-x-0.5 transition-all" />
+            <span className="text-xs font-heading font-bold tracking-widest uppercase text-slate-500 group-hover:text-slate-800">Exit Client</span>
+          </Link>
+          
+          <div className="h-6 w-px bg-slate-200" />
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+              <Activity className="w-5 h-5" />
+            </div>
+            <span className="font-heading font-bold text-slate-900 tracking-tight text-lg">{capitalName} Portal</span>
           </div>
-          <span className="font-bold text-slate-900 tracking-tight">{capitalName} Hospital</span>
         </div>
-        <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-full shadow-sm">Client Node</span>
+        
+        <div className="hidden sm:flex items-center">
+          <span className="text-xs bg-emerald-50 text-emerald-700 font-heading font-bold tracking-widest uppercase px-4 py-2 rounded-full border border-emerald-200/60 shadow-sm">Active Node</span>
+        </div>
       </header>
 
       <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
@@ -267,7 +275,7 @@ export default function HospitalMonitor({ params }: Props) {
         >
           <div className="flex items-center gap-2 mb-6">
             <Network className="w-5 h-5 text-indigo-500" />
-            <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+            <h2 className="text-sm font-heading font-bold uppercase tracking-widest text-slate-500">
               Federated Learning Flow
             </h2>
           </div>
@@ -284,7 +292,7 @@ export default function HospitalMonitor({ params }: Props) {
                      <div className="flex items-center justify-between mb-4 relative z-10">
                        <div className="flex items-center gap-2">
                          <Sparkles className="w-4 h-4 text-indigo-500" />
-                         <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Global Knowledge Acquired</span>
+                         <span className="text-[11px] font-heading font-bold uppercase tracking-widest text-slate-500">Global Knowledge Acquired</span>
                        </div>
                        <div className="flex items-center gap-1.5 bg-white/60 border border-slate-200/60 px-2.5 py-1 rounded-full shadow-sm">
                          <Database className="w-3 h-3 text-slate-400" />
@@ -297,7 +305,7 @@ export default function HospitalMonitor({ params }: Props) {
                          <div className="absolute -right-4 -top-4 w-16 h-16 bg-blue-50 rounded-full opacity-60 blur-xl group-hover:scale-150 transition-transform duration-500" />
                          <div className="flex items-center gap-2 mb-1.5 relative z-10">
                            <Activity className="w-4 h-4 text-blue-500" />
-                           <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Diagnostic Focus</div>
+                           <div className="text-[10px] font-heading uppercase font-bold text-slate-400 tracking-widest">Diagnostic Focus</div>
                          </div>
                          <div className="text-sm font-bold text-slate-700 relative z-10">Heart Disease</div>
                          <div className="text-xs font-medium text-slate-500 mt-1 relative z-10 leading-relaxed">Built to analyze 13 fundamental clinical metrics</div>
@@ -307,7 +315,7 @@ export default function HospitalMonitor({ params }: Props) {
                          <div className="absolute -right-4 -top-4 w-16 h-16 bg-violet-50 rounded-full opacity-60 blur-xl group-hover:scale-150 transition-transform duration-500" />
                          <div className="flex items-center gap-2 mb-1.5 relative z-10">
                            <Globe2 className="w-4 h-4 text-violet-500" />
-                           <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Model Version</div>
+                           <div className="text-[10px] font-heading uppercase font-bold text-slate-400 tracking-widest">Model Version</div>
                          </div>
                          <div className="flex items-baseline gap-2 relative z-10 pt-0.5">
                             <div className="text-sm font-bold text-slate-700">Iteration {initialWeights?.round ?? status?.current_round ?? 0}</div>
@@ -319,7 +327,7 @@ export default function HospitalMonitor({ params }: Props) {
 
                      {/* Parameter Preview */}
                      <div className="bg-slate-50/50 rounded-xl p-3 border border-slate-100 relative z-10">
-                        <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 flex items-center justify-between">
+                        <div className="text-[10px] font-heading uppercase font-bold text-slate-400 tracking-widest mb-2 flex items-center justify-between">
                           <span>Live Parameter Snapshot</span>
                           <span className="text-slate-300 font-mono lowercase">layer_0.kernel</span>
                         </div>
@@ -360,7 +368,7 @@ export default function HospitalMonitor({ params }: Props) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
-              <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">Patient Data</h2>
+              <h2 className="text-sm font-heading font-bold uppercase tracking-widest text-slate-500">Patient Data</h2>
             </div>
             <div className="flex bg-slate-100/80 p-1 rounded-xl shadow-inner border border-slate-200/50">
               {(["sample", "upload"] as const).map(mode => (
@@ -447,18 +455,18 @@ export default function HospitalMonitor({ params }: Props) {
         >
           <div className="flex items-center gap-2 mb-2">
             <Cpu className="w-5 h-5 text-violet-500" />
-            <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">Local Training</h2>
+            <h2 className="text-sm font-heading font-bold uppercase tracking-widest text-slate-500">Local Training</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <label className="space-y-1.5 focus-within:text-indigo-600 transition-colors group">
-              <span className="text-[11px] font-bold text-slate-400 group-focus-within:text-indigo-500 uppercase tracking-widest block ml-1 transition-colors">Epochs</span>
+              <span className="text-[11px] font-heading font-bold text-slate-400 group-focus-within:text-indigo-500 uppercase tracking-widest block ml-1 transition-colors">Epochs</span>
               <input type="number" min={1} max={50} value={epochs}
                 onChange={e => setEpochs(+e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all shadow-sm" />
             </label>
             <label className="space-y-1.5 focus-within:text-indigo-600 transition-colors relative group">
-              <span className="text-[11px] font-bold text-slate-400 group-focus-within:text-indigo-500 uppercase tracking-widest block ml-1 transition-colors">Learning Rate</span>
+              <span className="text-[11px] font-heading font-bold text-slate-400 group-focus-within:text-indigo-500 uppercase tracking-widest block ml-1 transition-colors">Learning Rate</span>
               <div className="relative">
                 <select value={lr} onChange={e => setLr(+e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all shadow-sm">
@@ -542,8 +550,8 @@ export default function HospitalMonitor({ params }: Props) {
                     <CheckCircle2 className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-800">Training Complete</h2>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">Local round successfully finished and verified.</p>
+                    <h2 className="text-sm font-heading font-bold uppercase tracking-widest text-emerald-800">Training Complete</h2>
+                    <p className="text-sm text-slate-500 font-medium mt-0.5">Local round successfully finished and verified.</p>
                   </div>
                 </div>
                 
@@ -579,7 +587,7 @@ export default function HospitalMonitor({ params }: Props) {
         {/* Previous submission from server state */}
         {!result && client && client.rounds_submitted > 0 && (
           <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white/60 backdrop-blur-xl rounded-3xl border border-white p-8 shadow-lg shadow-slate-200/30">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-6">Historical Protocol Data</h2>
+            <h2 className="text-[11px] font-heading font-bold uppercase tracking-widest text-slate-400 mb-6">Historical Protocol Data</h2>
             <div className="grid grid-cols-3 gap-6 mb-5">
               <Metric label="Last Accuracy"
                 value={client.metrics?.accuracy != null ? `${(client.metrics.accuracy * 100).toFixed(1)}%` : "—"}
@@ -597,8 +605,8 @@ export default function HospitalMonitor({ params }: Props) {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
                 </span>
-                <span className="text-xs font-semibold text-slate-600">
-                  Total Participated Rounds: <strong className="text-slate-900 ml-1">{client.rounds_submitted}</strong>
+                <span className="text-sm font-semibold text-slate-600">
+                  Total Participated Rounds: <strong className="font-heading text-slate-900 ml-1 text-base">{client.rounds_submitted}</strong>
                 </span>
               </div>
             </div>
@@ -613,7 +621,7 @@ export default function HospitalMonitor({ params }: Props) {
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm">Federation Complete</h4>
+                  <h4 className="font-heading font-bold text-slate-900 text-sm">Federation Complete</h4>
                   <p className="text-sm text-slate-600 mt-1 font-medium">The global model has been updated with contributions from all hospitals.</p>
                 </div>
               </div>
@@ -644,10 +652,10 @@ function Step({ n, label, status, icon, children }: { n: number; label: string; 
         styles.circle, styles.ring,
         status === "active" && "scale-105"
       )}>
-        {status === "done" ? <CheckCircle2 className="w-6 h-6" /> : (status === "active" ? <div className="w-5 h-5">{icon}</div> : <span className="text-sm font-black">{n}</span>)}
+        {status === "done" ? <CheckCircle2 className="w-6 h-6" /> : (status === "active" ? <div className="w-5 h-5">{icon}</div> : <span className="text-sm font-bold">{n}</span>)}
         {status === "active" && (
            <div className="absolute -top-2 -right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
-             <span className="text-[10px] font-black text-indigo-600">{n}</span>
+             <span className="text-[10px] font-bold text-indigo-600">{n}</span>
            </div>
         )}
       </div>
@@ -680,8 +688,8 @@ function Metric({ label, value, color, delay = 0 }: { label: string; value: stri
       )} />
       
       <div className="relative z-10 flex flex-col items-center">
-        <div className="text-4xl font-black tracking-tight mb-1">{value}</div>
-        <div className="text-[10px] font-bold uppercase tracking-widest opacity-70 bg-white/50 px-2 py-0.5 rounded-full backdrop-blur-sm shadow-sm">{label}</div>
+        <div className="text-5xl font-heading font-bold tracking-tight mb-2">{value}</div>
+        <div className="text-xs font-heading font-bold uppercase tracking-widest opacity-70 bg-white/50 px-3 py-1 rounded-full backdrop-blur-sm shadow-sm">{label}</div>
       </div>
     </motion.div>
   );
@@ -696,7 +704,7 @@ function ParameterSnapshot({ weights, label }: { weights: number[] | null, label
   return (
     <div className="mt-8 bg-slate-50 border border-slate-100/50 rounded-2xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4 px-1">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</h3>
+        <h3 className="font-heading text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</h3>
         <span className="text-[10px] font-mono font-semibold text-slate-400 bg-white px-2 py-0.5 rounded-md border border-slate-100 shadow-xs">
           layer_0.kernel
         </span>
@@ -706,7 +714,7 @@ function ParameterSnapshot({ weights, label }: { weights: number[] | null, label
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {weights.map((w, i) => (
             <div key={i} className="bg-white px-4 py-3 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 text-center">{WEIGHT_LABELS[i]}</span>
+              <span className="text-[9px] font-heading font-bold uppercase tracking-widest text-slate-400 mb-1.5 text-center">{WEIGHT_LABELS[i]}</span>
               <span className={cn(
                 "font-bold font-mono text-sm transition-colors",
                 w > 0 ? "text-emerald-600" : "text-rose-500"

@@ -28,6 +28,8 @@ st.set_page_config(
 # ── session state ────────────────────────────────────────────────────────────
 if "role" not in st.session_state:
     st.session_state.role = None
+if "hospital_name" not in st.session_state:
+    st.session_state.hospital_name = None
 
 
 # ── CSS ──────────────────────────────────────────────────────────────────────
@@ -472,23 +474,19 @@ def _inject_css():
 
 
 # ── sidebar ──────────────────────────────────────────────────────────────────
-_ROLES = [
-    ("central_server", "🖥️", "Central Server", "server"),
-    ("cleveland",      "🏥", "Cleveland",      "hosp"),
-    ("hungarian",      "🏥", "Hungarian",      "hosp"),
-]
 
 def render_sidebar():
     state     = load_state()
     hospitals = state["hospitals"]
     fed       = state["federation"]
     role      = st.session_state.role
+    hosp_name = st.session_state.hospital_name
 
     with st.sidebar:
-        # Branding — clickable home
         if st.button("FL Simulation", key="sb_home", use_container_width=True,
-                      help="Back to home"):
+                     help="Back to home"):
             st.session_state.role = None
+            st.session_state.hospital_name = None
             st.rerun()
 
         st.markdown(
@@ -497,62 +495,68 @@ def render_sidebar():
             unsafe_allow_html=True,
         )
 
-        # ── always-visible role nav ──────────────────────────────────────────
-        for role_key, icon, label, chip_cls in _ROLES:
-            is_active = role == role_key
-            if is_active:
-                # Active role — highlighted, not clickable
-                st.markdown(
-                    f'<div class="role-nav active">'
-                    f'<div class="role-nav-icon {chip_cls} active">{icon}</div>'
-                    f'<div class="role-nav-name">{label}</div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                # Inactive role — clickable button
-                if st.button(
-                    f"{icon}  {label}",
-                    key=f"sb_role_{role_key}",
-                    use_container_width=True,
-                ):
-                    st.session_state.role = role_key
-                    st.rerun()
+        # Central Server nav item
+        if role == "central_server":
+            st.markdown(
+                '<div class="role-nav active">'
+                '<div class="role-nav-icon server active">🖥️</div>'
+                '<div class="role-nav-name">Central Server</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            if st.button("🖥️  Central Server", key="sb_role_server", use_container_width=True):
+                st.session_state.role = "central_server"
+                st.rerun()
+
+        # Hospital nav item (dynamic name)
+        if role == "hospital" and hosp_name:
+            st.markdown(
+                f'<div class="role-nav active">'
+                f'<div class="role-nav-icon hosp active">🏥</div>'
+                f'<div class="role-nav-name">{hosp_name.capitalize()} Hospital</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            if st.button("🏥  Hospital", key="sb_role_hosp", use_container_width=True):
+                st.session_state.role = None  # Go to landing to pick name
+                st.session_state.hospital_name = None
+                st.rerun()
 
         st.markdown('<hr style="margin:14px 0;border:none;border-top:1px solid #e8ecf4">', unsafe_allow_html=True)
 
-        # ── federation status ────────────────────────────────────────────────
+        # ── federation status (dynamic — no hardcoded names) ─────────────────
         st.markdown(
             '<p style="font-size:.68rem;font-weight:700;letter-spacing:.08em;'
             'text-transform:uppercase;color:#b0b8c9;margin:0 0 10px">Federation</p>',
             unsafe_allow_html=True,
         )
-        registered = [n for n, h in hospitals.items() if h.get("registered")]
-        n_reg = len(registered)
 
-        for name in ("cleveland", "hungarian"):
-            h = hospitals[name]
-            is_reg = h.get("registered")
-            dot_cls = "active" if is_reg else "inactive"
-            pts_str = f" · {h['num_patients']} pts" if is_reg else ""
-            st.markdown(
-                f'<div class="fed-hosp-row">'
-                f'<div class="fed-dot {dot_cls}"></div>'
-                f'<span style="font-weight:600;color:{"#1e293b" if is_reg else "#94a3b8"}">'
-                f'{name.capitalize()}{pts_str}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+        if hospitals:
+            for name, h in hospitals.items():
+                is_reg = h.get("registered")
+                dot_cls = "active" if is_reg else "inactive"
+                pts_str = f" · {h['num_patients']} pts" if is_reg else ""
+                st.markdown(
+                    f'<div class="fed-hosp-row">'
+                    f'<div class="fed-dot {dot_cls}"></div>'
+                    f'<span style="font-weight:600;color:{"#1e293b" if is_reg else "#94a3b8"}">'
+                    f'{name.capitalize()}{pts_str}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            n_reg = sum(1 for h in hospitals.values() if h.get("registered"))
+            st.caption(f"**{n_reg}** of {len(hospitals)} connected")
+        else:
+            st.caption("No hospitals connected yet")
 
-        st.caption(f"**{n_reg}** of 2 connected")
-
-        # Round progress
         fed_status = fed.get("status", "waiting")
         current    = fed.get("current_round", 0)
         total      = fed.get("total_rounds", 3)
 
         s_key = ("complete" if fed_status == "complete"
-                 else "training" if ("round" in fed_status or fed_status == "training")
+                 else "training" if fed_status == "training"
                  else "waiting")
         status_colors = {"complete": "#059669", "training": "#6366f1", "waiting": "#94a3b8"}
         st.markdown(
@@ -562,7 +566,7 @@ def render_sidebar():
             f'{fed_status.replace("_"," ").title()}</span></div>',
             unsafe_allow_html=True,
         )
-        if total > 0 and (current > 0 or fed_status not in ("waiting",)):
+        if total > 0 and current > 0:
             st.progress(int(current / total * 100))
             st.caption(f"Round {current} / {total}")
 
@@ -570,10 +574,11 @@ def render_sidebar():
 
         with st.expander("Quick Guide"):
             st.markdown(
-                "1. Select **Cleveland** → load data → register\n"
-                "2. Select **Hungarian** → load data → register\n"
-                "3. Select **Central Server** → start training\n\n"
-                "Open 3 tabs at `localhost:8501` for the best experience."
+                "1. **Central Server** → Publish Global Model\n"
+                "2. **Hospital** → pick a name → load data → Train & Send\n"
+                "3. Repeat step 2 for each hospital in separate tabs\n"
+                "4. **Central Server** → Start Aggregation → view results\n\n"
+                "Open multiple tabs at `localhost:8501` for the full experience."
             )
 
 
@@ -623,25 +628,25 @@ def render_landing():
     st.markdown("")
     st.markdown("")
 
-    # Role selection
+    # Role selection — two cards
     st.markdown(
         '<p class="sec-label" style="text-align:center;margin-bottom:18px">Choose your role</p>',
         unsafe_allow_html=True,
     )
-    c1, c2, c3 = st.columns(3, gap="large")
+    c1, c2 = st.columns(2, gap="large")
 
     with c1:
         st.markdown("""
         <div class="role-card">
           <div class="role-card-icon server">🖥️</div>
           <div class="role-card-title">Central Server</div>
-          <div class="role-card-desc">Oversee the federation — monitor connections,
-          configure training, launch rounds, and view aggregated results.</div>
+          <div class="role-card-desc">Publish the global model, start aggregation,
+          and view results. Never sees raw patient data.</div>
           <span class="role-card-tag tag-server">Server</span>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("")
-        if st.button("Enter as Central Server", key="sel_coord", type="primary", use_container_width=True):
+        if st.button("Enter as Central Server", key="sel_server", type="primary", use_container_width=True):
             st.session_state.role = "central_server"
             st.rerun()
 
@@ -649,35 +654,34 @@ def render_landing():
         st.markdown("""
         <div class="role-card">
           <div class="role-card-icon hosp">🏥</div>
-          <div class="role-card-title">Cleveland Hospital</div>
-          <div class="role-card-desc">Load the Cleveland UCI heart-disease dataset,
-          configure local hyperparameters, and join the session.</div>
+          <div class="role-card-title">Hospital</div>
+          <div class="role-card-desc">Fetch the global model, train on local data,
+          and send weight updates. Data never leaves.</div>
           <span class="role-card-tag tag-hosp">Participant</span>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("")
-        if st.button("Enter as Cleveland", key="sel_clev", type="primary", use_container_width=True):
-            st.session_state.role = "cleveland"
-            st.rerun()
-
-    with c3:
-        st.markdown("""
-        <div class="role-card">
-          <div class="role-card-icon hosp">🏥</div>
-          <div class="role-card-title">Hungarian Hospital</div>
-          <div class="role-card-desc">Load the Hungarian UCI heart-disease dataset,
-          configure local hyperparameters, and join the session.</div>
-          <span class="role-card-tag tag-hosp">Participant</span>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("")
-        if st.button("Enter as Hungarian", key="sel_hung", type="primary", use_container_width=True):
-            st.session_state.role = "hungarian"
+        hosp_input = st.text_input(
+            "Hospital name", placeholder="e.g. Cleveland, Budapest, Oslo…",
+            key="landing_hosp_name", label_visibility="collapsed",
+        )
+        presets = ["Cleveland", "Hungarian", "Budapest", "Oslo"]
+        preset_cols = st.columns(len(presets))
+        for col, preset in zip(preset_cols, presets):
+            if col.button(preset, key=f"preset_{preset}", use_container_width=True):
+                st.session_state.landing_hosp_name = preset
+                st.session_state.hospital_name = preset.lower()
+                st.session_state.role = "hospital"
+                st.rerun()
+        if st.button("Enter as Hospital", key="sel_hosp", type="primary",
+                     use_container_width=True, disabled=not hosp_input.strip()):
+            st.session_state.hospital_name = hosp_input.strip().lower()
+            st.session_state.role = "hospital"
             st.rerun()
 
     st.markdown("")
 
-    # Current federation state (if any hospitals registered)
+    # Active federation status (dynamic — no hardcoded names)
     state     = load_state()
     hospitals = state["hospitals"]
     fed       = state["federation"]
@@ -685,25 +689,21 @@ def render_landing():
 
     if registered or fed.get("active"):
         st.markdown(
-            '<p class="sec-label" style="text-align:center;margin:24px 0 14px">Current Federation</p>',
+            '<p class="sec-label" style="text-align:center;margin:24px 0 14px">Active Federation</p>',
             unsafe_allow_html=True,
         )
-        sc1, sc2, sc3, sc4 = st.columns(4)
-        clev = hospitals["cleveland"]
-        hung = hospitals["hungarian"]
-        sc1.metric("Cleveland", f"{clev['num_patients']} pts" if clev["registered"] else "Not joined",
-                   delta="Ready" if clev["status"] == "ready" else None)
-        sc2.metric("Hungarian", f"{hung['num_patients']} pts" if hung["registered"] else "Not joined",
-                   delta="Ready" if hung["status"] == "ready" else None)
-        sc3.metric("Connected", f"{len(registered)} / 2")
-        sc4.metric("Training", fed.get("status", "waiting").replace("_", " ").title())
-
+        cols = st.columns(min(len(registered) + 2, 5))
+        for i, name in enumerate(registered):
+            h = hospitals[name]
+            cols[i].metric(name.capitalize(), f"{h['num_patients']} pts",
+                           delta=h.get("status", "waiting").title())
+        cols[-2].metric("Connected", len(registered))
+        cols[-1].metric("Status", fed.get("status", "waiting").replace("_", " ").title())
     else:
         st.markdown(
             '<div style="text-align:center;margin-top:12px">'
             '<p style="font-size:.88rem;color:#94a3b8">'
-            'Open this app in <b>3 browser tabs</b> and select a different role in each '
-            'for the full experience.</p></div>',
+            'Open this app in multiple browser tabs — one per role.</p></div>',
             unsafe_allow_html=True,
         )
 
@@ -721,11 +721,15 @@ elif role == "central_server":
     from views.central_server import render_central_server
     render_central_server()
 
-elif role in ("cleveland", "hungarian"):
+elif role == "hospital":
     from views.hospital import render_hospital
-    render_hospital(role)
+    hosp_name = st.session_state.get("hospital_name")
+    if hosp_name:
+        render_hospital(hosp_name)
+    else:
+        st.session_state.role = None
+        st.rerun()
 
 else:
-    st.error(f"Unknown role: {role}")
     st.session_state.role = None
     st.rerun()

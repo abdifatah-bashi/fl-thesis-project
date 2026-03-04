@@ -1,8 +1,8 @@
 """
-Hospital Interface — Cleveland & Hungarian.
+Hospital Interface — Clean FL client view.
 
-Four-step workflow displayed as a progress wizard:
-  1 → Load Data    2 → Configure    3 → Register    4 → Training
+Flow: Fetch Global Model → Load Data → Train Locally → Send Updates
+No waiting, no bottlenecks. Hospital acts independently.
 """
 
 import sys
@@ -17,577 +17,234 @@ import numpy as np
 import streamlit as st
 
 from state_manager import load_state, save_state
-from fl_runner import load_sample_data_info, register_hospital, save_hospital_config
+from fl_runner import load_sample_data_info, start_hospital_training
 
 ROOT_PATH = Path(__file__).parent.parent.parent
-EXPECTED_COLS = ["age","sex","cp","trestbps","chol","fbs","restecg",
-                 "thalach","exang","oldpeak","slope","ca","thal"]
-
-
-# ── tiny helpers ─────────────────────────────────────────────────────────────
-
-def _pill(status: str) -> str:
-    m = {
-        "waiting":  '<span class="pill pill-waiting">Waiting</span>',
-        "ready":    '<span class="pill pill-ready">Ready</span>',
-        "training": '<span class="pill pill-training">Training</span>',
-        "done":     '<span class="pill pill-done">Complete</span>',
-    }
-    return m.get(status, f'<span class="pill pill-waiting">{status}</span>')
-
-
-def _validate_df(df):
-    if len(df.columns) < 13:
-        return False, f"Need ≥ 13 feature columns — got {len(df.columns)}."
-    if len(df) < 10:
-        return False, "Dataset too small (need ≥ 10 rows)."
-    return True, "Dataset looks good."
-
-
-def _progress_pills(data_loaded: bool, is_registered: bool,
-                    is_training: bool, is_complete: bool) -> None:
-    """Modern step progress tracker — clean numbered capsules + connecting lines."""
-    step_defs = [
-        ("Load Data", data_loaded or is_registered),
-        ("Register",  is_registered),
-        ("Training",  is_complete),
-    ]
-    active_idx = next((i for i, (_, done) in enumerate(step_defs) if not done), None)
-
-    circles, lines = [], []
-    for i, (label, done) in enumerate(step_defs):
-        active = (i == active_idx)
-        if done:
-            c_bg   = "linear-gradient(135deg,#d1fae5,#a7f3d0)"
-            c_brd  = "1px solid #6ee7b7"
-            c_txt  = "&#10003;"
-            c_col  = "#059669"
-            l_col  = "#1e293b"
-            l_wt   = "600"
-        elif active:
-            c_bg   = "linear-gradient(135deg,#6366f1,#8b5cf6)"
-            c_brd  = "none"
-            c_txt  = str(i + 1)
-            c_col  = "#ffffff"
-            l_col  = "#4f46e5"
-            l_wt   = "700"
-        else:
-            c_bg   = "#f1f3f9"
-            c_brd  = "1px solid #e2e5ef"
-            c_txt  = str(i + 1)
-            c_col  = "#b0b8c9"
-            l_col  = "#b0b8c9"
-            l_wt   = "500"
-
-        shadow = "box-shadow:0 3px 10px rgba(99,102,241,.25);" if active else ""
-
-        circles.append(
-            f'<div style="display:flex;flex-direction:column;align-items:center;'
-            f'gap:8px;min-width:90px;flex:0 0 auto">'
-            f'<div style="width:40px;height:40px;border-radius:12px;background:{c_bg};'
-            f'border:{c_brd};display:flex;align-items:center;justify-content:center;'
-            f'font-size:.95rem;font-weight:800;color:{c_col};{shadow}'
-            f'transition:all .3s">{c_txt}</div>'
-            f'<span style="font-size:.82rem;font-weight:{l_wt};color:{l_col};'
-            f'white-space:nowrap">{label}</span></div>'
-        )
-        if i < len(step_defs) - 1:
-            line_col = "#86efac" if done else "#e2e5ef"
-            lines.append(
-                f'<div style="flex:1;height:2px;border-radius:1px;background:{line_col};'
-                f'margin:0 8px;align-self:flex-start;margin-top:19px;'
-                f'transition:background .3s"></div>'
-            )
-
-    interleaved = []
-    for i, circle in enumerate(circles):
-        interleaved.append(circle)
-        if i < len(lines):
-            interleaved.append(lines[i])
-
-    st.markdown(
-        '<p class="sec-label">Progress</p>'
-        '<div style="display:flex;align-items:flex-start;padding:0 0 20px">'
-        + "".join(interleaved)
-        + "</div>",
-        unsafe_allow_html=True,
-    )
-
-
-def _next_step(title: str, body: str):
-    st.markdown(
-        f'<div class="next-step"><div class="next-step-title">Next: {title}</div>'
-        f'<div style="color:#475569;margin-top:4px;font-size:.875rem;line-height:1.6">{body}</div></div>',
-        unsafe_allow_html=True,
-    )
+RESULTS_DIR = ROOT_PATH / "results"
+EXPECTED_COLS = [
+    "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
+    "thalach", "exang", "oldpeak", "slope", "ca", "thal",
+]
 
 
 def _label(text: str):
-    """Small all-caps section label."""
+    st.markdown(f'<p class="sec-label">{text}</p>', unsafe_allow_html=True)
+
+
+def _step_indicator(number: int, title: str, status: str):
+    """Render a step row: number circle, title, status icon."""
+    styles = {
+        "done":    ("#059669", "#d1fae5", "&#10003;"),
+        "active":  ("#4f46e5", "#e0e7ff", "&#9679;"),
+        "waiting": ("#94a3b8", "#f1f5f9", "&#8212;"),
+    }
+    color, bg, icon = styles.get(status, styles["waiting"])
     st.markdown(
-        f'<p class="sec-label">{text}</p>',
+        f'<div style="display:flex;align-items:center;gap:12px;padding:10px 0;'
+        f'border-bottom:1px solid #f1f5f9">'
+        f'<div style="width:32px;height:32px;border-radius:8px;background:{bg};'
+        f'display:flex;align-items:center;justify-content:center;'
+        f'font-weight:700;font-size:.85rem;color:{color};flex-shrink:0">{number}</div>'
+        f'<span style="font-weight:600;color:#1e293b;flex:1">{title}</span>'
+        f'<span style="font-size:.8rem;color:{color};font-weight:600">{icon}</span>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
-
-# ── main ─────────────────────────────────────────────────────────────────────
 
 def render_hospital(hospital_name: str):
     from components.nav import render_page_header
 
     display = hospital_name.capitalize()
+    state = load_state()
+    h = state["hospitals"].get(hospital_name, {})
+    fed = state["federation"]
+    is_complete = h.get("status") == "done"
+    is_training = h.get("status") == "training"
+    global_params_exist = (RESULTS_DIR / "global_params.pt").exists()
 
-    state         = load_state()
-    h             = state["hospitals"].get(hospital_name, {})
-    fed           = state["federation"]
-    is_registered = h.get("registered", False)
-    status        = h.get("status", "waiting")
-    fed_status    = fed.get("status", "waiting")
-    is_training   = fed.get("active", False) and fed_status not in ("complete", "waiting")
-    is_complete   = fed_status == "complete" or status == "done"
+    df_key = f"{hospital_name}_df"
+    src_key = f"{hospital_name}_data_source"
+    data_loaded = df_key in st.session_state or h.get("registered", False)
 
-    df_key      = f"{hospital_name}_df"
-    src_key     = f"{hospital_name}_data_source"
-    data_loaded = df_key in st.session_state
+    render_page_header("🏥", f"{display} Hospital", "Federated learning client")
 
-    # ── header ────────────────────────────────────────────────────────────────
-    render_page_header("🏥", f"{display} Hospital", "Join the federated learning session")
+    # ══════════════════════════════════════════════════════════════════════════
+    # STEP 1 — Fetch Global Model
+    # ══════════════════════════════════════════════════════════════════════════
+    _label("Step 1 — Fetch Global Model")
 
-    # ── progress status (informational pills, not navigation) ─────────────────
-    _progress_pills(data_loaded, is_registered, is_training, is_complete)
-
-    # ── top-of-page status message (only when meaningful) ─────────────────────
-    if is_complete:
-        st.success("🎉 Training complete! Your data contributed to the global model.")
-    elif is_registered and not is_training:
-        st.success(f"✅ Registered · {h['num_patients']} patients · waiting for training.")
-        _next_step(
-            "Open the Central Server",
-            "Switch to <b>Central Server</b> and click <b>Start Federated Training</b> "
-            "once both hospitals are registered.",
+    if global_params_exist:
+        st.success("Global model parameters fetched.")
+    else:
+        st.info(
+            "Global model not yet available. "
+            "Switch to **Central Server** and click **Publish Global Model**.",
+            icon="📡",
         )
 
-    # ── custom tab navigation — session-state driven, supports auto-switching ──
-    _TAB_KEY = f"tab_{hospital_name}"
-    if _TAB_KEY not in st.session_state:
-        st.session_state[_TAB_KEY] = 0   # 0=Data  1=Setup  2=Training  3=Privacy
-
-    _tab_labels = [
-        "Data"     + (" ✓" if data_loaded or is_registered else ""),
-        "Setup"    + (" ✓" if is_registered else ""),
-        "Training" + (" ●" if is_training else (" ✓" if is_complete else "")),
-        "Privacy",
-    ]
-    _active = st.session_state[_TAB_KEY]
-
-    # Segmented tab bar
-    st.markdown(
-        '<div style="display:flex;gap:2px;background:#f1f3f9;border-radius:12px;padding:4px;margin-bottom:24px">',
-        unsafe_allow_html=True,
-    )
-    tc0, tc1, tc2, tc3 = st.columns(4)
-    for _idx, (_col, _lbl) in enumerate(zip([tc0, tc1, tc2, tc3], _tab_labels)):
-        with _col:
-            if st.button(_lbl, key=f"{hospital_name}_tab_{_idx}",
-                         use_container_width=True,
-                         type="primary" if _active == _idx else "secondary"):
-                st.session_state[_TAB_KEY] = _idx
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 0 — Data
+    # STEP 2 — Load Data
     # ══════════════════════════════════════════════════════════════════════════
-    if _active == 0:
+    _label("Step 2 — Load Local Data")
 
-        # ── PRIMARY ACTION: sample data ───────────────────────────────────────
-        _label("Recommended")
+    if h.get("registered", False):
+        st.success(
+            f"Data loaded · **{h['num_patients']}** patients · "
+            f"**{h.get('disease_rate', 0)*100:.1f}%** disease rate"
+        )
+    elif df_key in st.session_state:
+        df_prev = st.session_state[df_key]
+        src = st.session_state.get(src_key, "upload")
+        if src == "sample":
+            inf = st.session_state.get(f"{hospital_name}_info", {})
+            n_pts = inf.get("num_patients", len(df_prev))
+            dr = inf.get("disease_rate", 0) * 100
+        else:
+            tgt = "num" if "num" in df_prev.columns else df_prev.columns[-1]
+            dr = (pd.to_numeric(df_prev[tgt], errors="coerce").fillna(0) > 0).mean() * 100
+            n_pts = len(df_prev)
 
-        with st.container(border=True):
-            col_info, col_btn = st.columns([3, 1], gap="large")
+        st.success(f"Data loaded · **{n_pts}** patients · **{dr:.1f}%** disease rate")
 
-            with col_info:
-                st.markdown("**Use Built-in Sample Data**")
-                st.markdown(
-                    f"Pre-validated UCI Heart Disease dataset "
-                    f"for **{display}** — bundled with this project."
+        # Auto-register (saves data locally, no sharing)
+        if not h.get("registered"):
+            if src == "sample":
+                from src.data_loader import load_hospital_data
+                X, y = load_hospital_data(
+                    hospital_name,
+                    data_dir=str(ROOT_PATH / "data" / "heart_disease" / "raw"),
                 )
-                info_preview = load_sample_data_info(hospital_name)
-                if info_preview:
-                    s1, s2, s3 = st.columns(3)
-                    s1.metric("Patients",     info_preview["num_patients"])
-                    s2.metric("Features",     13)
-                    s3.metric("Disease rate", f"{info_preview['disease_rate']*100:.1f}%")
+                full_df = pd.DataFrame(
+                    np.column_stack([X, y]),
+                    columns=EXPECTED_COLS + ["num"],
+                )
+            else:
+                full_df = df_prev
+            from fl_runner import register_hospital
+            register_hospital(hospital_name, full_df, h.get("config", {}))
+            st.rerun()
+    else:
+        col_sample, col_or, col_upload = st.columns([2, 0.5, 2])
 
-            with col_btn:
-                st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
-                if st.button(
-                    "Load Sample Data",
-                    key=f"{hospital_name}_sample",
-                    use_container_width=True,
-                    type="primary",
-                ):
-                    with st.spinner("Loading…"):
-                        info2 = load_sample_data_info(hospital_name)
-                    if info2:
-                        st.session_state[df_key]  = info2["preview"].copy()
-                        st.session_state[src_key] = "sample"
-                        st.session_state[f"{hospital_name}_info"] = info2
-                        st.session_state[_TAB_KEY] = 1   # ← auto-navigate to Setup
-                        st.toast(f"Loaded {info2['num_patients']} patients", icon="✅")
-                        st.rerun()
-                    else:
-                        st.error("Sample file not found — check `data/heart_disease/raw/`.")
-
-        # ── SECONDARY: upload ─────────────────────────────────────────────────
-        st.markdown(
-            '<div style="display:flex;align-items:center;gap:12px;margin:24px 0 16px">'
-            '<hr style="flex:1;border:none;border-top:1px solid #e8ecf4">'
-            '<span style="color:#b0b8c9;font-size:.78rem;font-weight:600;'
-            'letter-spacing:.04em;white-space:nowrap;text-transform:uppercase">'
-            'or upload your own</span>'
-            '<hr style="flex:1;border:none;border-top:1px solid #e8ecf4">'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-        uploaded = st.file_uploader(
-            "CSV with 13 feature columns + a target or num column",
-            type=["csv"],
-            key=f"{hospital_name}_uploader",
-        )
-        if uploaded is not None:
-            try:
-                df_up = pd.read_csv(uploaded)
-                ok, msg = _validate_df(df_up)
-                if ok:
-                    st.session_state[df_key]  = df_up
-                    st.session_state[src_key] = "upload"
-                    st.session_state[_TAB_KEY] = 1   # ← auto-navigate to Setup
-                    st.toast(msg, icon="✅")
+        with col_sample:
+            info = load_sample_data_info(hospital_name)
+            if info:
+                st.caption(f"UCI Heart Disease · {info['num_patients']} patients")
+            if st.button("Load Sample Data", key=f"{hospital_name}_sample",
+                         type="primary", use_container_width=True):
+                info2 = load_sample_data_info(hospital_name)
+                if info2:
+                    st.session_state[df_key] = info2["preview"].copy()
+                    st.session_state[src_key] = "sample"
+                    st.session_state[f"{hospital_name}_info"] = info2
                     st.rerun()
                 else:
-                    st.error(msg)
-            except Exception as e:
-                st.error(f"Could not parse file: {e}")
+                    st.error("Sample file not found.")
 
-        # ── DATA PREVIEW ──────────────────────────────────────────────────────
-        if data_loaded:
-            st.divider()
-            df_prev = st.session_state[df_key]
-            src     = st.session_state.get(src_key, "upload")
-
-            if src == "sample":
-                inf     = st.session_state.get(f"{hospital_name}_info", {})
-                n       = inf.get("num_patients", "?")
-                dr      = inf.get("disease_rate", 0) * 100
-                src_lbl = "Built-in UCI sample"
-            else:
-                tgt     = "num" if "num" in df_prev.columns else df_prev.columns[-1]
-                dr      = (pd.to_numeric(df_prev[tgt], errors="coerce").fillna(0) > 0).mean() * 100
-                n       = len(df_prev)
-                src_lbl = "Uploaded CSV"
-
-            _label("data loaded")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Source",       src_lbl)
-            c2.metric("Patients",     n)
-            c3.metric("Features",     13)
-            c4.metric("Disease rate", f"{dr:.1f}%")
-
-            if not is_registered:
-                _, _clr = st.columns([5, 1])
-                with _clr:
-                    if st.button(
-                        "✕ Change data",
-                        key=f"{hospital_name}_clear",
-                        use_container_width=True,
-                        help="Remove this dataset and choose a different one",
-                    ):
-                        for k in [df_key, src_key, f"{hospital_name}_info"]:
-                            st.session_state.pop(k, None)
-                        st.toast("Dataset cleared — choose a new one above", icon="🗑️")
-                        st.rerun()
-
-            st.markdown("**Preview — first 5 rows**")
-            st.dataframe(df_prev.head(), use_container_width=True, hide_index=True)
-
-            st.warning(
-                "Confirm this file contains **no patient names, IDs, or personally "
-                "identifiable information** before registering.",
-                icon="⚠️",
-            )
-
-        else:
+        with col_or:
             st.markdown(
-                '<div class="empty-state" style="padding:36px 24px">'
-                '<div class="empty-state-icon">📋</div>'
-                '<div class="empty-state-title">No data loaded yet</div>'
-                '<div class="empty-state-desc">'
-                'Click <b>Load Sample Data</b> above or upload a CSV.</div></div>',
+                '<div style="display:flex;align-items:center;justify-content:center;'
+                'height:80px;color:#94a3b8;font-size:.8rem">or</div>',
                 unsafe_allow_html=True,
             )
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 1 — Setup  (Configure + Register combined)
-    # ══════════════════════════════════════════════════════════════════════════
-    elif _active == 1:
-
-        if not data_loaded and not is_registered:
-            st.write("")
-            st.info(
-                "**Load your data first.**\n\n"
-                "Go to the **Data** tab, load the sample dataset or upload a CSV, "
-                "then return here to configure and register.",
-                icon="📋",
+        with col_upload:
+            uploaded = st.file_uploader(
+                "Upload CSV", type=["csv"], key=f"{hospital_name}_uploader",
+                label_visibility="collapsed",
             )
-        else:
-            # ── Part A: Hyperparameters ───────────────────────────────────────
-            st.markdown(
-                '<p class="sec-label">Training Hyperparameters</p>',
-                unsafe_allow_html=True,
-            )
-            st.caption("Applied locally at this hospital during each FL round.")
-
-            if is_training:
-                st.info("Training is in progress — settings are locked.", icon="🔒")
-
-            cfg = h.get("config", {})
-            c1, c2 = st.columns(2)
-            epochs = c1.slider(
-                "Epochs per round", 1, 10,
-                int(cfg.get("epochs_per_round", 1)),
-                disabled=is_training,
-                help="Full passes over local data per FL round.",
-            )
-            batch_opts = [8, 16, 32, 64, 128]
-            cur_b = int(cfg.get("batch_size", 32))
-            batch = c2.selectbox(
-                "Batch size", batch_opts,
-                index=batch_opts.index(cur_b) if cur_b in batch_opts else 2,
-                disabled=is_training,
-                help="Samples per gradient update step.",
-            )
-
-            c3, c4 = st.columns(2)
-            lr_opts = [0.001, 0.01, 0.05, 0.1]
-            cur_lr = float(cfg.get("learning_rate", 0.01))
-            lr = c3.selectbox(
-                "Learning rate", lr_opts,
-                index=lr_opts.index(cur_lr) if cur_lr in lr_opts else 1,
-                disabled=is_training,
-                help="Adam optimiser step size.",
-            )
-            split_pct = c4.slider(
-                "Train / test split", 60, 90,
-                int(float(cfg.get("train_split", 0.8)) * 100),
-                format="%d%%",
-                disabled=is_training,
-                help="% of data used for training; rest for evaluation.",
-            )
-
-            n_pts = h.get("num_patients", 0)
-            if n_pts > 0:
-                n_tr = int(n_pts * split_pct / 100)
-                st.caption(f"**{n_tr}** training · **{n_pts - n_tr}** test (from {n_pts} total)")
-
-            if not is_training:
-                if st.button("Save Configuration", type="primary", disabled=is_training):
-                    new_cfg = {
-                        "epochs_per_round": epochs,
-                        "batch_size":       batch,
-                        "learning_rate":    lr,
-                        "train_split":      split_pct / 100,
-                    }
-                    if save_hospital_config(hospital_name, new_cfg):
-                        st.toast("Configuration saved!", icon="✅")
+            if uploaded is not None:
+                try:
+                    df_up = pd.read_csv(uploaded)
+                    if len(df_up.columns) >= 13 and len(df_up) >= 10:
+                        st.session_state[df_key] = df_up
+                        st.session_state[src_key] = "upload"
                         st.rerun()
                     else:
-                        st.error("Save failed — please try again.")
-
-            # ── Part B: Register ──────────────────────────────────────────────
-            st.markdown("")
-            st.markdown(
-                '<p class="sec-label">Register with Federation</p>',
-                unsafe_allow_html=True,
-            )
-
-            if is_registered:
-                st.success(
-                    f"**{display} is registered.** "
-                    f"{h['num_patients']} patients · "
-                    f"{h.get('disease_rate', 0)*100:.1f}% disease rate"
-                )
-                st.caption(f"Registered at: {h.get('registered_at', '—')}")
-                _next_step(
-                    "Wait for training to start",
-                    "The central server will launch training once all hospitals have registered. "
-                    "Check the <b>Training</b> tab for live progress.",
-                )
-            else:
-                df_prev = st.session_state[df_key]
-                src     = st.session_state.get(src_key, "upload")
-
-                r1, r2, r3 = st.columns(3)
-                if src == "sample":
-                    inf = st.session_state.get(f"{hospital_name}_info", {})
-                    r1.metric("Patients",     inf.get("num_patients", "?"))
-                    r2.metric("Disease rate", f"{inf.get('disease_rate', 0)*100:.1f}%")
-                else:
-                    tgt = "num" if "num" in df_prev.columns else df_prev.columns[-1]
-                    dr  = (pd.to_numeric(df_prev[tgt], errors="coerce").fillna(0) > 0).mean() * 100
-                    r1.metric("Patients",     len(df_prev))
-                    r2.metric("Disease rate", f"{dr:.1f}%")
-                cfg2 = h.get("config", {})
-                r3.metric("Config", f"lr={cfg2.get('learning_rate', 0.01)} · {cfg2.get('epochs_per_round', 1)} ep")
-
-                st.info(
-                    "By registering you confirm data has been de-identified and you consent "
-                    "to sharing **model weight updates only** with the federation.",
-                    icon="🔒",
-                )
-
-                if st.button("Register with Federation", type="primary", use_container_width=True):
-                    with st.spinner("Registering…"):
-                        if src == "sample":
-                            from src.data_loader import load_hospital_data
-                            X, y = load_hospital_data(
-                                hospital_name,
-                                data_dir=str(ROOT_PATH / "data" / "heart_disease" / "raw"),
-                            )
-                            full_df = pd.DataFrame(
-                                np.column_stack([X, y]),
-                                columns=EXPECTED_COLS + ["num"],
-                            )
-                        else:
-                            full_df = df_prev
-                        ok = register_hospital(hospital_name, full_df, h.get("config", {}))
-                    if ok:
-                        st.toast(f"✅ {display} registered!", icon="🏥")
-                        time.sleep(0.3)
-                        st.rerun()
-                    else:
-                        st.error("Registration failed — please try again.")
+                        st.error("Need ≥ 13 columns and ≥ 10 rows.")
+                except Exception as e:
+                    st.error(f"Could not parse file: {e}")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 2 — Training
+    # STEP 3 — Train Locally & Send Updates
     # ══════════════════════════════════════════════════════════════════════════
-    elif _active == 2:
-        current_round = fed.get("current_round", 0)
-        total_rounds  = fed.get("total_rounds", 3)
-        pct  = int(current_round / total_rounds * 100) if total_rounds > 0 else 0
-        hist = fed.get("history", {})
+    _label("Step 3 — Train & Send Updates")
 
-        if not is_registered:
-            st.write("")
-            st.info(
-                "**This section activates once you've registered.**\n\n"
-                "Steps to complete first:\n"
-                "1. **Data** tab — load your patient dataset\n"
-                "2. **Setup** tab — configure and register with the federation\n\n"
-                "Training starts automatically when the central server launches a session.",
-                icon="🔒",
-            )
+    ready = global_params_exist and h.get("registered", False)
 
-        elif not fed.get("active") and not is_complete:
-            st.write("")
-            st.success(
-                f"**{display} is registered and ready!** "
-                f"Waiting for the central server to launch training.",
-                icon="⏳",
-            )
-            _next_step(
-                "Switch to Central Server",
-                "Use the sidebar to open the <b>Central Server</b> dashboard "
-                "and click <b>Start Federated Training</b> once both hospitals are registered.",
-            )
-
-        else:
-            if is_complete:
-                st.success("🎉 Training finished! Your updates shaped the global model.")
-                if not fed.get("celebrated", False):
-                    fed["celebrated"] = True
-                    save_state(state)
-                    st.balloons()
-            else:
-                st.markdown(
-                    f'**Round {current_round} / {total_rounds}** &nbsp; {_pill(status)}',
-                    unsafe_allow_html=True,
-                )
-                st.progress(pct)
-                st.caption("Auto-refreshes every 2 s while training is active.")
-
-            if hist.get("train_loss") or hist.get("accuracy"):
-                st.divider()
-                m1, m2, m3 = st.columns(3)
-                if hist.get("train_loss"):
-                    delta = (
-                        f"{hist['train_loss'][-1] - hist['train_loss'][-2]:+.4f}"
-                        if len(hist["train_loss"]) > 1 else None
-                    )
-                    m1.metric("Training Loss", f"{hist['train_loss'][-1]:.4f}",
-                              delta=delta, delta_color="inverse")
-                if hist.get("accuracy"):
-                    m2.metric("Global Accuracy", f"{hist['accuracy'][-1]*100:.1f}%")
-                if hist.get("eval_loss"):
-                    m3.metric("Eval Loss", f"{hist['eval_loss'][-1]:.4f}")
-
-                if hist.get("rounds") and len(hist["rounds"]) > 1:
-                    st.divider()
-                    st.caption("Per-round summary")
-                    import pandas as _pd
-                    st.dataframe(_pd.DataFrame({
-                        "Round":        hist["rounds"],
-                        "Accuracy (%)": [f"{a*100:.1f}" for a in hist.get("accuracy", [])],
-                        "Train Loss":   [f"{l:.4f}" for l in hist.get("train_loss", [])],
-                        "Eval Loss":    [f"{l:.4f}" for l in hist.get("eval_loss", [])],
-                    }), use_container_width=True, hide_index=True)
-
-            if is_training:
-                time.sleep(1)
-                st.rerun()
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 3 — Privacy
-    # ══════════════════════════════════════════════════════════════════════════
-    elif _active == 3:
-        st.markdown(
-            f'<p style="font-size:.92rem;color:#64748b;line-height:1.7;margin:4px 0 20px">'
-            f'<b>{display}</b>\'s patient records <b>never leave this hospital</b>. '
-            f'Only mathematical model updates are shared.</p>',
-            unsafe_allow_html=True,
-        )
-
-        col_priv, col_share = st.columns(2, gap="large")
-        with col_priv:
-            with st.container(border=True):
-                st.markdown("**Stays Private**")
-                for item in [
-                    "Individual patient records",
-                    "Diagnoses & test results",
-                    "Patient demographics",
-                    "All raw feature values",
-                    "Any personal identifiers",
-                ]:
-                    st.markdown(f"&check; &nbsp; {item}")
-
-        with col_share:
-            with st.container(border=True):
-                st.markdown("**Shared with Federation**")
-                for item in [
-                    "Model **weight updates** (not data)",
-                    "Aggregated loss — 1 number/round",
-                    "Aggregated accuracy — 1 number/round",
-                    "Training sample **count** only",
-                    "Final global model weights",
-                ]:
-                    st.markdown(f"&rarr; &nbsp; {item}")
+    if is_complete:
+        # Training finished
+        _step_indicator(1, "Fetched global model parameters", "done")
+        _step_indicator(2, "Trained on local data", "done")
+        _step_indicator(3, "Sent weight updates to server", "done")
 
         st.markdown("")
-        with st.container(border=True):
-            st.markdown("**Why weight updates ≠ patient data**")
-            st.markdown(
-                "Weight updates are high-dimensional vectors that encode *how the model changed* — "
-                "not the data it trained on. FedAvg further blends updates from **all hospitals** "
-                "before the central server ever sees them, making reverse-engineering practically impossible."
-            )
+        st.success(
+            "Training complete — weight updates sent. "
+            "Your data never left this hospital."
+        )
+
+        h_acc = h.get("local_accuracy", 0)
+        h_loss = h.get("local_train_loss", 0)
+        h_eval = h.get("local_eval_loss", 0)
+        if h_acc or h_loss:
+            _label("Local Metrics")
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Accuracy", f"{h_acc*100:.1f}%")
+            m2.metric("Train Loss", f"{h_loss:.4f}")
+            m3.metric("Eval Loss", f"{h_eval:.4f}")
+
+        hist = fed.get("history", {})
+        if hist.get("accuracy"):
+            _label("Global Model Metrics")
+            m1, m2 = st.columns(2)
+            m1.metric("Global Accuracy", f"{hist['accuracy'][-1]*100:.1f}%")
+            if hist.get("train_loss"):
+                m2.metric("Global Loss", f"{hist['train_loss'][-1]:.4f}")
+
+        if not fed.get("celebrated", False):
+            fed["celebrated"] = True
+            save_state(state)
+            st.balloons()
+
+    elif is_training:
+        # Training in progress
+        total_rounds = fed.get("total_rounds", 3)
+        h_round = h.get("round_submitted", 0)
+
+        _step_indicator(1, "Fetch global model", "done")
+        _step_indicator(2, f"Training locally (round {h_round + 1}/{total_rounds})", "active")
+        _step_indicator(3, "Send weight updates", "done" if h_round > 0 else "waiting")
+
+        st.markdown("")
+        pct = int(h_round / total_rounds * 100) if total_rounds > 0 else 0
+        st.progress(pct)
+        st.caption(f"Completed {h_round} of {total_rounds} rounds")
+
+        h_acc = h.get("local_accuracy", 0)
+        h_loss = h.get("local_train_loss", 0)
+        if h_acc or h_loss:
+            m1, m2 = st.columns(2)
+            m1.metric("Train Loss", f"{h_loss:.4f}")
+            m2.metric("Accuracy", f"{h_acc*100:.1f}%")
+
+        time.sleep(1)
+        st.rerun()
+
+    elif ready:
+        # Both global model and data ready — start training
+        st.info("Global model fetched and data loaded. Click below to start local training.")
+        if st.button("Train & Send Updates", type="primary", use_container_width=True):
+            st.session_state[f"{hospital_name}_training_thread"] = \
+                start_hospital_training(hospital_name)
+            st.rerun()
+
+    else:
+        # Not ready yet
+        missing = []
+        if not global_params_exist:
+            missing.append("global model (central server must publish it)")
+        if not h.get("registered"):
+            missing.append("local data (load above)")
+        st.caption(f"Waiting for: {', '.join(missing)}")

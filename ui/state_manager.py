@@ -14,42 +14,37 @@ from typing import Dict, Any
 
 STATE_FILE = Path("results/fl_state.json")
 
-DEFAULT_STATE: Dict[str, Any] = {
-    "hospitals": {
-        "cleveland": {
-            "registered": False,
-            "num_patients": 0,
-            "disease_rate": 0.0,
-            "status": "waiting",   # waiting | ready | training | done
-            "config": {
-                "epochs_per_round": 1,
-                "batch_size": 32,
-                "learning_rate": 0.01,
-                "train_split": 0.8,
-            },
-            "registered_at": None,
-        },
-        "hungarian": {
-            "registered": False,
-            "num_patients": 0,
-            "disease_rate": 0.0,
-            "status": "waiting",
-            "config": {
-                "epochs_per_round": 1,
-                "batch_size": 32,
-                "learning_rate": 0.01,
-                "train_split": 0.8,
-            },
-            "registered_at": None,
-        },
+DEFAULT_HOSPITAL: Dict[str, Any] = {
+    "registered": False,
+    "num_patients": 0,
+    "disease_rate": 0.0,
+    "status": "waiting",   # waiting | ready | training | done
+    "config": {
+        "epochs_per_round": 1,
+        "batch_size": 32,
+        "learning_rate": 0.01,
+        "train_split": 0.8,
     },
+    "registered_at": None,
+    "round_submitted": 0,
+    "training_joined": False,
+    "local_train_loss": 0.0,
+    "local_eval_loss": 0.0,
+    "local_accuracy": 0.0,
+    "num_train_samples": 0,
+}
+
+DEFAULT_STATE: Dict[str, Any] = {
+    "hospitals": {},  # Dynamic — hospitals register themselves
     "federation": {
         "active": False,
+        "model_published": False,
         "current_round": 0,
         "total_rounds": 3,
         "status": "waiting",      # waiting | training | complete | error
         "started_at": None,
         "completed_at": None,
+        "published_at": None,
         "celebrated": False,
         "history": {
             "rounds": [],
@@ -62,6 +57,13 @@ DEFAULT_STATE: Dict[str, Any] = {
 }
 
 
+def get_or_create_hospital(state: Dict, name: str) -> Dict:
+    """Get a hospital entry, creating it with defaults if it doesn't exist."""
+    if name not in state["hospitals"]:
+        state["hospitals"][name] = copy.deepcopy(DEFAULT_HOSPITAL)
+    return state["hospitals"][name]
+
+
 def load_state() -> Dict[str, Any]:
     """Load shared federation state from JSON file."""
     if not STATE_FILE.exists():
@@ -69,6 +71,7 @@ def load_state() -> Dict[str, Any]:
     try:
         with open(STATE_FILE, "r") as f:
             data = json.load(f)
+        # Merge federation defaults, but keep hospitals dict as-is (dynamic)
         merged = copy.deepcopy(DEFAULT_STATE)
         _deep_merge(merged, data)
         return merged

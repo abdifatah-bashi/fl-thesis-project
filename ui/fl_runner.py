@@ -1,13 +1,18 @@
 """
-FL Runner — Bridge between Streamlit UI and Flower-compatible training.
+FL Runner — True Federated Learning with independent roles.
 
-Runs federated learning (FedAvg) in a background thread using direct
-PyTorch training — no Ray / Flower simulation server overhead.
-Reports per-round progress to the shared state JSON file.
+Architecture:
+  - Central Server: creates initial model, publishes global_params.pt,
+    aggregates weight files from hospitals. NEVER touches raw data.
+  - Hospitals: fetch global_params.pt, train locally on own data,
+    submit only weights_{name}.pt. Data never leaves the hospital.
+
+Communication is via shared state JSON + .pt weight files in results/.
 """
 
 import sys
 import json
+import time
 import threading
 from pathlib import Path
 from datetime import datetime
@@ -27,7 +32,9 @@ from sklearn.preprocessing import StandardScaler
 
 from src.model import HeartDiseaseNet, train_model, test_model
 from src.utils import get_parameters, set_parameters
-from state_manager import load_state, save_state
+from state_manager import load_state, save_state, get_or_create_hospital
+
+RESULTS_DIR = ROOT / "results"
 
 # ── constants ────────────────────────────────────────────────────────────────
 COLUMNS = [
@@ -37,36 +44,6 @@ COLUMNS = [
 UPLOAD_DIR = ROOT / "data" / "hospital_uploads"
 
 
-# ── progress persistence helper ──────────────────────────────────────────────
-
-def _persist_progress(
-    server_round: int,
-    phase: str,
-    total_rounds: int,
-    train_losses: List[Tuple[int, float]],
-    eval_losses: List[Tuple[int, float]],
-    accuracies: List[Tuple[int, float]],
-) -> None:
-    """Write per-round metrics to the shared state file."""
-    try:
-        state = load_state()
-        fed = state["federation"]
-        fed["current_round"] = server_round
-        fed["status"] = f"round_{server_round}_{phase}"
-        hist = fed["history"]
-        hist["rounds"] = [r for r, _ in accuracies] or [r for r, _ in train_losses]
-        hist["accuracy"] = [round(a, 4) for _, a in accuracies]
-        hist["train_loss"] = [round(l, 4) for _, l in train_losses]
-        hist["eval_loss"] = [round(l, 4) for _, l in eval_losses]
-        if server_round >= total_rounds and phase == "evaluated":
-            fed["status"] = "complete"
-            fed["completed_at"] = datetime.now().isoformat()
-            for h in ("cleveland", "hungarian"):
-                if state["hospitals"][h]["registered"]:
-                    state["hospitals"][h]["status"] = "done"
-        save_state(state)
-    except Exception:
-        pass
 
 
 # ── data helpers ─────────────────────────────────────────────────────────────
@@ -152,7 +129,8 @@ def register_hospital(
         disease_rate = float(y.mean()) if len(y) > 0 else 0.0
 
         state = load_state()
-        state["hospitals"][hospital_name].update({
+        h = get_or_create_hospital(state, hospital_name)
+        h.update({
             "registered": True,
             "num_patients": len(df),
             "disease_rate": disease_rate,
@@ -169,101 +147,106 @@ def register_hospital(
 def save_hospital_config(hospital_name: str, config: Dict) -> bool:
     try:
         state = load_state()
-        state["hospitals"][hospital_name]["config"] = config
+        h = get_or_create_hospital(state, hospital_name)
+        h["config"] = config
         save_state(state)
         return True
     except Exception:
         return False
 
 
-# ── simulation runner ─────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# CENTRAL SERVER — aggregation only, never touches raw data
+# ══════════════════════════════════════════════════════════════════════════════
 
-def _run_simulation(state_snapshot: Dict, config: Dict) -> None:
-    """Run FedAvg training loop directly (no Ray / Flower simulation server)."""
-    num_rounds = int(config.get("num_rounds", 3))
-    epochs = int(config.get("epochs_per_round", 1))
-    lr = float(config.get("learning_rate", 0.01))
-    hospitals_cfg = state_snapshot.get("hospitals", {})
+def _server_aggregation_loop(total_rounds: int, registered: List[str]) -> None:
+    """Background thread: wait for hospital weight submissions, FedAvg, repeat."""
+    train_losses: List[Tuple[int, float]] = []
+    eval_losses: List[Tuple[int, float]] = []
+    accuracies: List[Tuple[int, float]] = []
 
     try:
-        # ── prepare one model per hospital ───────────────────────────────
-        clients: List[Tuple[HeartDiseaseNet, Any, Any, int]] = []
-        hospital_order = ["cleveland", "hungarian"]
-        for name in hospital_order:
-            h = hospitals_cfg.get(name, {})
-            if h.get("registered", False):
-                tl, tel, n = prepare_hospital_data(name, h.get("config", {}))
-                model = HeartDiseaseNet()
-                clients.append((model, tl, tel, n))
+        for rnd in range(1, total_rounds + 1):
+            # ── wait for ALL hospitals to submit weights for this round ──
+            while True:
+                s = load_state()
+                all_submitted = all(
+                    s["hospitals"][name].get("round_submitted", 0) >= rnd
+                    for name in registered
+                )
+                if all_submitted:
+                    break
+                time.sleep(0.3)
 
-        if len(clients) < 2:
-            s = load_state()
-            s["federation"]["status"] = "error: need at least 2 registered hospitals"
-            save_state(s)
-            return
-
-        # ── initialise global parameters from a fresh model ──────────────
-        global_params = get_parameters(HeartDiseaseNet())
-
-        train_losses: List[Tuple[int, float]] = []
-        eval_losses: List[Tuple[int, float]] = []
-        accuracies: List[Tuple[int, float]] = []
-        accuracy_history: List[Tuple[int, float]] = []
-        training_loss_history: List[Tuple[int, float]] = []
-        distributed_loss_history: List[Tuple[int, float]] = []
-
-        for rnd in range(1, num_rounds + 1):
-            # ── FIT: each client trains on the global parameters ─────────
-            fit_results: List[Tuple[list, int, float]] = []
-            for model, tl, tel, n in clients:
-                set_parameters(model, global_params)
-                loss = train_model(model, tl, epochs=epochs, lr=lr)
-                fit_results.append((get_parameters(model), n, loss))
+            # ── load weight files (NEVER raw data) ───────────────────────
+            fit_results: List[Tuple[list, int]] = []
+            for name in registered:
+                params = torch.load(RESULTS_DIR / f"weights_{name}.pt",
+                                    weights_only=True)
+                n_samples = s["hospitals"][name].get("num_train_samples", 1)
+                fit_results.append((params, n_samples))
 
             # ── FedAvg aggregation ───────────────────────────────────────
-            total_n = sum(n for _, n, _ in fit_results)
+            total_n = sum(n for _, n in fit_results)
             num_layers = len(fit_results[0][0])
             global_params = [
-                sum(n * params[i] for params, n, _ in fit_results) / total_n
+                sum(n * params[i] for params, n in fit_results) / total_n
                 for i in range(num_layers)
             ]
 
-            avg_train_loss = sum(n * l for _, n, l in fit_results) / total_n
+            # ── publish new global model ─────────────────────────────────
+            torch.save(global_params, RESULTS_DIR / "global_params.pt")
+
+            # ── aggregate per-hospital metrics from state ────────────────
+            avg_train_loss = sum(
+                s["hospitals"][n].get("num_train_samples", 1)
+                * s["hospitals"][n].get("local_train_loss", 0)
+                for n in registered
+            ) / total_n
+            avg_eval_loss = sum(
+                s["hospitals"][n].get("num_train_samples", 1)
+                * s["hospitals"][n].get("local_eval_loss", 0)
+                for n in registered
+            ) / total_n
+            avg_accuracy = sum(
+                s["hospitals"][n].get("num_train_samples", 1)
+                * s["hospitals"][n].get("local_accuracy", 0)
+                for n in registered
+            ) / total_n
+
             train_losses.append((rnd, avg_train_loss))
-            training_loss_history.append((rnd, avg_train_loss))
-
-            _persist_progress(rnd, "trained", num_rounds,
-                              train_losses, eval_losses, accuracies)
-
-            # ── EVALUATE: each client evaluates the aggregated model ─────
-            eval_results: List[Tuple[float, int, float]] = []
-            for model, tl, tel, n in clients:
-                set_parameters(model, global_params)
-                loss, acc = test_model(model, tel)
-                eval_results.append((loss, len(tel.dataset), acc))
-
-            total_eval = sum(n for _, n, _ in eval_results)
-            avg_eval_loss = sum(n * l for l, n, _ in eval_results) / total_eval
-            avg_accuracy = sum(n * a for _, n, a in eval_results) / total_eval
-
             eval_losses.append((rnd, avg_eval_loss))
             accuracies.append((rnd, avg_accuracy))
-            accuracy_history.append((rnd, avg_accuracy))
-            distributed_loss_history.append((rnd, avg_eval_loss))
 
-            _persist_progress(rnd, "evaluated", num_rounds,
-                              train_losses, eval_losses, accuracies)
+            # ── update federation state ──────────────────────────────────
+            s = load_state()
+            fed = s["federation"]
+            hist = fed["history"]
+            hist["rounds"] = [r for r, _ in accuracies]
+            hist["accuracy"] = [round(a, 4) for _, a in accuracies]
+            hist["train_loss"] = [round(l, 4) for _, l in train_losses]
+            hist["eval_loss"] = [round(l, 4) for _, l in eval_losses]
 
-        # ── persist final results ────────────────────────────────────────
-        results_dir = ROOT / "results"
-        results_dir.mkdir(exist_ok=True)
-        with open(results_dir / "simulation_results.json", "w") as f:
+            if rnd >= total_rounds:
+                fed["current_round"] = rnd
+                fed["status"] = "complete"
+                fed["completed_at"] = datetime.now().isoformat()
+                for name in registered:
+                    s["hospitals"][name]["status"] = "done"
+            else:
+                fed["current_round"] = rnd + 1
+                fed["status"] = f"round_{rnd}_aggregated"
+
+            save_state(s)
+
+        # ── save final results file ──────────────────────────────────────
+        with open(RESULTS_DIR / "simulation_results.json", "w") as f:
             json.dump({
-                "accuracy": accuracy_history,
-                "training_loss": training_loss_history,
-                "distributed_loss": distributed_loss_history,
-                "num_rounds": num_rounds,
-                "num_clients": len(clients),
+                "accuracy": [(r, a) for r, a in accuracies],
+                "training_loss": [(r, l) for r, l in train_losses],
+                "distributed_loss": [(r, l) for r, l in eval_losses],
+                "num_rounds": total_rounds,
+                "num_clients": len(registered),
             }, f, indent=2)
 
     except Exception as e:
@@ -275,27 +258,138 @@ def _run_simulation(state_snapshot: Dict, config: Dict) -> None:
             pass
 
 
-def start_simulation_thread(config: Dict) -> threading.Thread:
-    """Start the FL simulation in a non-blocking background thread."""
-    state_snapshot = load_state()
+def publish_global_model() -> None:
+    """Central Server Step 1: create initial model and publish global_params.pt.
 
-    # Mark federation active immediately so the UI picks it up
-    # without waiting for data preparation inside the thread.
+    No dependencies — can be done before any hospital registers.
+    """
+    RESULTS_DIR.mkdir(exist_ok=True)
+    model = HeartDiseaseNet()
+    torch.save(get_parameters(model), RESULTS_DIR / "global_params.pt")
+
     s = load_state()
+    s["federation"].update({
+        "model_published": True,
+        "published_at": datetime.now().isoformat(),
+    })
+    save_state(s)
+
+
+def start_aggregation(config: Dict) -> threading.Thread:
+    """Central Server Step 2: start the aggregation loop.
+
+    Requires at least one hospital to have submitted weights.
+    """
+    total_rounds = int(config.get("num_rounds", 3))
+
+    s = load_state()
+    registered = [n for n, h in s["hospitals"].items() if h.get("registered")]
     s["federation"].update({
         "active": True,
         "status": "training",
-        "total_rounds": int(config.get("num_rounds", 3)),
+        "current_round": 1,
+        "total_rounds": total_rounds,
         "started_at": datetime.now().isoformat(),
     })
-    for h in ("cleveland", "hungarian"):
-        if s["hospitals"][h].get("registered"):
-            s["hospitals"][h]["status"] = "training"
     save_state(s)
 
     t = threading.Thread(
-        target=_run_simulation,
-        args=(state_snapshot, config),
+        target=_server_aggregation_loop,
+        args=(total_rounds, registered),
+        daemon=True,
+    )
+    t.start()
+    return t
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HOSPITAL — local training only, data never leaves
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _hospital_training_loop(hospital_name: str) -> None:
+    """Background thread: fetch global params → train locally → submit weights.
+
+    Round 1 runs immediately using the published global_params.pt.
+    Rounds 2+ wait for the server to aggregate and publish new params.
+    """
+    try:
+        # Load THIS hospital's own data (never another hospital's)
+        s = load_state()
+        h_cfg = s["hospitals"][hospital_name].get("config", {})
+        trainloader, testloader, num_train = prepare_hospital_data(
+            hospital_name, h_cfg
+        )
+
+        total_rounds = s["federation"].get("total_rounds", 3)
+        epochs = int(h_cfg.get("epochs_per_round", 1))
+        lr = float(h_cfg.get("learning_rate", 0.01))
+        model = HeartDiseaseNet()
+
+        for rnd in range(1, total_rounds + 1):
+            # ── Round 1: use published params. Round 2+: wait for server ─
+            if rnd > 1:
+                while True:
+                    s = load_state()
+                    fed = s["federation"]
+                    if fed.get("current_round", 0) > rnd - 1:
+                        break
+                    if fed.get("status", "").startswith("error"):
+                        return
+                    time.sleep(0.3)
+
+            # ── fetch global model (params only, not data) ───────────────
+            global_params = torch.load(
+                RESULTS_DIR / "global_params.pt", weights_only=True
+            )
+            set_parameters(model, global_params)
+
+            # ── train locally on own private data ────────────────────────
+            loss = train_model(model, trainloader, epochs=epochs, lr=lr)
+
+            # ── evaluate locally ─────────────────────────────────────────
+            eval_loss, accuracy = test_model(model, testloader)
+
+            # ── submit only weight updates (never raw data) ──────────────
+            torch.save(
+                get_parameters(model),
+                RESULTS_DIR / f"weights_{hospital_name}.pt",
+            )
+
+            # ── update state: mark round as submitted + local metrics ────
+            s = load_state()
+            s["hospitals"][hospital_name].update({
+                "round_submitted": rnd,
+                "local_train_loss": round(loss, 4),
+                "local_eval_loss": round(eval_loss, 4),
+                "local_accuracy": round(accuracy, 4),
+                "num_train_samples": num_train,
+                "status": "done" if rnd >= total_rounds else "training",
+            })
+            save_state(s)
+
+    except Exception as e:
+        try:
+            s = load_state()
+            s["hospitals"][hospital_name]["status"] = f"error: {e}"
+            save_state(s)
+        except Exception:
+            pass
+
+
+def start_hospital_training(hospital_name: str) -> threading.Thread:
+    """Hospital: fetch global model, train locally, send updates."""
+    s = load_state()
+    h = get_or_create_hospital(s, hospital_name)
+    h.update({
+        "training_joined": True,
+        "status": "training",
+        "round_submitted": 0,
+    })
+    save_state(s)
+
+    t = threading.Thread(
+        target=_hospital_training_loop,
+        args=(hospital_name,),
         daemon=True,
     )
     t.start()

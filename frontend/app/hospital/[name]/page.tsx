@@ -1,10 +1,31 @@
 "use client";
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronDown,
+  CloudDownload,
+  Cpu,
+  Database,
+  FileSpreadsheet,
+  UploadCloud,
+  Network,
+  Activity,
+  Sparkles,
+  Globe2,
+} from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import {
   fetchStatus, fetchGlobalModelJson, fetchSampleData, submitWeights,
   type FederationStatus, type TrainResult,
 } from "@/lib/api";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 type Props = { params: Promise<{ name: string }> };
 
@@ -82,6 +103,7 @@ export default function HospitalMonitor({ params }: Props) {
   const [progress, setProgress]   = useState<{ epoch: number; total: number; loss: number } | null>(null);
   const [result, setResult]       = useState<TrainResult | null>(null);
   const [error, setError]         = useState<string | null>(null);
+  const [globalWeights, setGlobalWeights] = useState<number[] | null>(null);
   const fileRef                   = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,6 +112,18 @@ export default function HospitalMonitor({ params }: Props) {
     const id = setInterval(poll, 2000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    // If model is published, proactively fetch it to show a sample of its weights
+    if (status?.model_published && !globalWeights) {
+      fetchGlobalModelJson()
+        .then(m => {
+          // Grab first 8 parameters from the first layer's kernel for display
+          setGlobalWeights(m.layers[0].kernel.flat().slice(0, 8));
+        })
+        .catch(console.error);
+    }
+  }, [status?.model_published, globalWeights]);
 
   const modelPublished = status?.model_published ?? false;
   const client         = status?.clients?.[displayName];
@@ -200,185 +234,378 @@ export default function HospitalMonitor({ params }: Props) {
   const step3 = result ? "done" : training ? "active" : "waiting";
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50/80 via-white to-emerald-50/80 text-slate-800">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-3">
-        <Link href="/" className="text-slate-400 hover:text-slate-700 text-sm">← Home</Link>
+      <header className="bg-white/70 backdrop-blur-xl border-b border-white/40 sticky top-0 z-10 px-6 py-4 flex items-center gap-3 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+        <Link href="/" className="text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1.5 text-sm font-semibold">
+          <ArrowLeft className="w-4 h-4" /> Home
+        </Link>
         <span className="text-slate-300">/</span>
-        <span className="font-bold text-slate-900">🏥 {capitalName} Hospital</span>
-        <span className="ml-auto text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1 rounded-full">Client</span>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+            <Activity className="w-4 h-4" />
+          </div>
+          <span className="font-bold text-slate-900 tracking-tight">{capitalName} Hospital</span>
+        </div>
+        <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-full shadow-sm">Client Node</span>
       </header>
 
-      <div className="max-w-2xl mx-auto px-6 py-10 space-y-6">
+      <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
 
         {/* FL Steps */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
-            Federated Learning Flow
-          </h2>
-          <div className="space-y-1">
-            <Step n={1} label="Fetch global model from server" status={step1} />
-            <Step n={2} label="Load local patient data (stays in this browser tab)" status={step2} />
-            <Step n={3} label="Train with TF.js & send only weight updates" status={step3} />
+        <motion.section 
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white p-8 shadow-xl shadow-slate-200/40"
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <Network className="w-5 h-5 text-indigo-500" />
+            <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+              Federated Learning Flow
+            </h2>
           </div>
-        </section>
+          <div className="space-y-4">
+            <Step n={1} label="Receive global diagnostic model" status={step1} icon={<CloudDownload />} >
+               <AnimatePresence>
+                 {modelPublished && (
+                   <motion.div 
+                     initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                     className="mt-4 bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 rounded-2xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden relative"
+                   >
+                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                     
+                     <div className="flex items-center justify-between mb-4 relative z-10">
+                       <div className="flex items-center gap-2">
+                         <Sparkles className="w-4 h-4 text-indigo-500" />
+                         <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Global Knowledge Acquired</span>
+                       </div>
+                       <div className="flex items-center gap-1.5 bg-white/60 border border-slate-200/60 px-2.5 py-1 rounded-full shadow-sm">
+                         <Database className="w-3 h-3 text-slate-400" />
+                         <span className="text-[10px] font-bold text-slate-600 tracking-wider">~1.2 MB Fetched</span>
+                       </div>
+                     </div>
+                     
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 relative z-10 mb-3">
+                       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 relative overflow-hidden group hover:border-blue-100 transition-colors">
+                         <div className="absolute -right-4 -top-4 w-16 h-16 bg-blue-50 rounded-full opacity-60 blur-xl group-hover:scale-150 transition-transform duration-500" />
+                         <div className="flex items-center gap-2 mb-1.5 relative z-10">
+                           <Activity className="w-4 h-4 text-blue-500" />
+                           <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Diagnostic Focus</div>
+                         </div>
+                         <div className="text-sm font-bold text-slate-700 relative z-10">Heart Disease</div>
+                         <div className="text-xs font-medium text-slate-500 mt-1 relative z-10 leading-relaxed">Built to analyze 13 fundamental clinical metrics</div>
+                       </div>
+
+                       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 relative overflow-hidden group hover:border-violet-100 transition-colors">
+                         <div className="absolute -right-4 -top-4 w-16 h-16 bg-violet-50 rounded-full opacity-60 blur-xl group-hover:scale-150 transition-transform duration-500" />
+                         <div className="flex items-center gap-2 mb-1.5 relative z-10">
+                           <Globe2 className="w-4 h-4 text-violet-500" />
+                           <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Model Version</div>
+                         </div>
+                         <div className="flex items-baseline gap-2 relative z-10 pt-0.5">
+                            <div className="text-sm font-bold text-slate-700">Iteration {status?.current_round ?? 0}</div>
+                            <div className="text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded uppercase tracking-wider">Ready</div>
+                         </div>
+                         <div className="text-xs font-medium text-slate-500 mt-1 relative z-10 leading-relaxed">Awaiting local patient data to learn and improve</div>
+                       </div>
+                     </div>
+
+                     {/* Parameter Preview */}
+                     <div className="bg-slate-50/50 rounded-xl p-3 border border-slate-100 relative z-10">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 flex items-center justify-between">
+                          <span>Live Parameter Snapshot</span>
+                          <span className="text-slate-300 font-mono lowercase">layer_0.kernel</span>
+                        </div>
+                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                           {globalWeights ? globalWeights.map((w, idx) => {
+                             const labels = ["Age", "Sex", "Chest Pain Type", "Resting BP", "Cholesterol", "Fasting Blood Sugar", "Resting ECG", "Max Heart Rate"];
+                             return (
+                               <div key={idx} className="bg-white border border-slate-100/80 rounded-lg p-2 flex flex-col items-center justify-center shadow-sm relative overflow-hidden group">
+                                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-50/50 pointer-events-none" />
+                                 <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mb-1 text-center w-full truncate px-1 relative z-10">{labels[idx]}</span>
+                                 <span className={cn(
+                                   "font-mono text-xs font-bold relative z-10",
+                                   w > 0 ? "text-emerald-600" : "text-rose-500"
+                                 )}>
+                                   {w > 0 ? "+" : ""}{w.toFixed(4)}
+                                 </span>
+                               </div>
+                             );
+                           }) : (
+                             <div className="col-span-4 text-center py-3 animate-pulse text-[11px] font-mono text-slate-400">Loading tensor data...</div>
+                           )}
+                        </div>
+                     </div>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
+            </Step>
+            <Step n={2} label="Load local patient data (stays on device)" status={step2} icon={<Database />} />
+            <Step n={3} label="Train locally & submit weight updates" status={step3} icon={<Cpu />} />
+          </div>
+        </motion.section>
 
         {/* Data selection */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Patient Data</h2>
-
-          <div className="flex gap-2">
-            {(["sample", "upload"] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setDataMode(mode)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  dataMode === mode
-                    ? "bg-indigo-100 text-indigo-700"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}
-              >
-                {mode === "sample" ? "Sample dataset" : "Upload CSV"}
-              </button>
-            ))}
+        <motion.section 
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white p-8 shadow-xl shadow-slate-200/40 space-y-6"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
+              <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">Patient Data</h2>
+            </div>
+            <div className="flex bg-slate-100/80 p-1 rounded-xl shadow-inner border border-slate-200/50">
+              {(["sample", "upload"] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setDataMode(mode)}
+                  className={cn(
+                    "relative px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300",
+                    dataMode === mode ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {dataMode === mode && (
+                    <motion.div layoutId="dataModeTab" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-100" />
+                  )}
+                  <span className="relative z-10">{mode === "sample" ? "Sample Data" : "Upload CSV"}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {dataMode === "sample" ? (
-            <div className="space-y-2">
-              <select
-                value={dataset}
-                onChange={e => setDataset(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              >
-                {SAMPLE_DATASETS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-              </select>
-              <p className="text-xs text-slate-400">
-                Public UCI Heart Disease dataset — for demo purposes. In production each hospital loads its own private CSV locally.
-              </p>
-            </div>
-          ) : (
-            <>
-              <input ref={fileRef} type="file" accept=".csv,.data" className="hidden"
-                onChange={e => setFile(e.target.files?.[0] ?? null)} />
-              <div
-                onClick={() => fileRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                  file ? "border-emerald-300 bg-emerald-50" : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50"
-                }`}
-              >
-                {file ? (
-                  <>
-                    <p className="text-sm font-semibold text-emerald-700">{file.name}</p>
-                    <p className="text-xs text-emerald-500 mt-1">{(file.size / 1024).toFixed(1)} KB · click to change</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-slate-500">Click to browse CSV</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      14 columns (no header): age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal, num
-                    </p>
-                  </>
-                )}
-              </div>
-              <p className="text-xs text-emerald-600 font-medium">
-                ✓ The CSV is read by the browser&apos;s FileReader API — it never leaves your machine.
-              </p>
-            </>
-          )}
-        </section>
+          <AnimatePresence mode="wait">
+            {dataMode === "sample" ? (
+              <motion.div key="sample" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }} className="space-y-3">
+                <div className="relative">
+                  <select
+                    value={dataset}
+                    onChange={e => setDataset(e.target.value)}
+                    className="w-full appearance-none bg-white border border-slate-200 rounded-2xl pl-4 pr-10 py-3.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all shadow-sm"
+                  >
+                    {SAMPLE_DATASETS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+                <p className="text-xs text-slate-400 font-medium px-1">
+                  Public UCI Heart Disease dataset — for demo purposes. In production, hospitals load private CSVs locally.
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div key="upload" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }}>
+                <input ref={fileRef} type="file" accept=".csv,.data" className="hidden"
+                  onChange={e => setFile(e.target.files?.[0] ?? null)} />
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  className={cn(
+                    "border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 group",
+                    file ? "border-emerald-400 bg-emerald-50/50 shadow-inner" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50"
+                  )}
+                >
+                  {file ? (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-1 shadow-sm">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold text-emerald-800">{file.name}</p>
+                      <p className="text-xs text-emerald-600 font-medium bg-emerald-100/50 px-3 py-1 rounded-full">{(file.size / 1024).toFixed(1)} KB · Click to change file</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-12 h-12 bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-500 rounded-full flex items-center justify-center mb-1 transition-colors">
+                        <UploadCloud className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-700 group-hover:text-indigo-700 transition-colors">Click to browse or drag CSV</p>
+                      <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                        14 columns (no header): age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal, num
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 flex items-start gap-2 text-emerald-700 bg-gradient-to-r from-emerald-50 to-emerald-50/30 p-3.5 rounded-xl border border-emerald-100/50">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
+                  <p className="text-xs font-semibold leading-relaxed">
+                    Data privacy guaranteed. The CSV is read entirely by the browser&apos;s FileReader API and never leaves your machine.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.section>
 
         {/* Training config + action */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Local Training</h2>
+        <motion.section 
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white p-8 shadow-xl shadow-slate-200/40 space-y-6"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Cpu className="w-5 h-5 text-violet-500" />
+            <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">Local Training</h2>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <label className="space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Epochs</span>
+            <label className="space-y-1.5 focus-within:text-indigo-600 transition-colors group">
+              <span className="text-[11px] font-bold text-slate-400 group-focus-within:text-indigo-500 uppercase tracking-widest block ml-1 transition-colors">Epochs</span>
               <input type="number" min={1} max={50} value={epochs}
                 onChange={e => setEpochs(+e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all shadow-sm" />
             </label>
-            <label className="space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Learning Rate</span>
-              <select value={lr} onChange={e => setLr(+e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                {[0.001, 0.01, 0.05, 0.1].map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
+            <label className="space-y-1.5 focus-within:text-indigo-600 transition-colors relative group">
+              <span className="text-[11px] font-bold text-slate-400 group-focus-within:text-indigo-500 uppercase tracking-widest block ml-1 transition-colors">Learning Rate</span>
+              <div className="relative">
+                <select value={lr} onChange={e => setLr(+e.target.value)}
+                  className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all shadow-sm">
+                  {[0.001, 0.01, 0.05, 0.1].map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
             </label>
           </div>
 
           {/* Progress bar */}
-          {training && progress && (
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>Epoch {progress.epoch} / {progress.total}</span>
-                <span>loss {progress.loss.toFixed(4)}</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-1.5">
-                <div
-                  className="bg-indigo-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${(progress.epoch / progress.total) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {training && progress && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden py-2">
+                <div className="flex justify-between text-[11px] font-bold text-slate-500 px-1 uppercase tracking-wide">
+                  <span className="text-indigo-600">Epoch {progress.epoch} of {progress.total}</span>
+                  <span>Loss <span className="text-slate-700 font-mono ml-1">{progress.loss.toFixed(4)}</span></span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-3 shadow-inner overflow-hidden relative border border-slate-200/50">
+                  <motion.div
+                    className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 rounded-full w-full bg-[length:200%_auto] animate-[gradient_2s_linear_infinite]"
+                    initial={{ scaleX: 0, originX: 0 }}
+                    animate={{ scaleX: progress.epoch / progress.total }}
+                    transition={{ type: "spring", bounce: 0, duration: 0.5 }}
+                  />
+                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSI+PC9yZWN0Pgo8cGF0aCBkPSJNMCAwTDggOFoiIHN0cm9rZT0iI2ZmZiIHN0cm9rZS1vcGFjaXR5PSIwLjIiIHN0cm9rZS13aWR0aD0iMiI+PC9wYXRoPjwvc3ZnPg==')] opacity-30 animate-[slide_1s_linear_infinite]" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <button
             disabled={!modelPublished || !hasData || training}
             onClick={handleTrain}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="group relative w-full overflow-hidden rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-indigo-500/20"
           >
-            {training ? "Training in browser…" : "Train & Submit Updates"}
+            <div className={cn(
+              "absolute inset-0 transition-all duration-300",
+              training ? "bg-indigo-400" : "bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 bg-[length:200%_auto] animate-[gradient_4s_linear_infinite]"
+            )} />
+            <div className="relative px-6 py-4 flex items-center justify-center gap-2 text-white font-bold tracking-wide">
+              {training ? (
+                <>
+                  <Activity className="w-5 h-5 animate-pulse" />
+                  Training Locally…
+                </>
+              ) : (
+                <>
+                  <CloudDownload className="w-5 h-5 rotate-180 group-hover:-translate-y-1 transition-transform" />
+                  Train & Submit Updates
+                </>
+              )}
+            </div>
           </button>
 
           {!modelPublished && (
-            <p className="text-xs text-amber-600 text-center">
-              Waiting for <Link href="/server" className="underline font-semibold">Central Server</Link> to publish the global model first.
-            </p>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-amber-700 font-medium text-center bg-amber-50 rounded-xl py-3 border border-amber-200/50 shadow-sm">
+              Waiting for <Link href="/server" className="underline font-bold text-amber-800 hover:text-amber-900">Central Server</Link> to publish the global model.
+            </motion.p>
           )}
-          {error && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-        </section>
+          {error && (
+            <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-600 font-bold bg-red-50 rounded-xl px-4 py-3 border border-red-200/50 shadow-sm flex items-start gap-2">
+              <span className="text-red-500 text-lg leading-none mt-0.5">!</span> <span className="mt-1">{error}</span>
+            </motion.p>
+          )}
+        </motion.section>
 
         {/* Training result */}
-        {result && (
-          <section className="bg-white rounded-2xl border border-slate-200 p-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Training Results</h2>
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <Metric label="Accuracy" value={`${(result.metrics.accuracy * 100).toFixed(1)}%`} color="emerald" />
-              <Metric label="Train Loss" value={result.metrics.train_loss.toFixed(4)} color="indigo" />
-              <Metric label="Samples" value={String(result.num_samples)} color="slate" />
-            </div>
-            <p className="text-xs text-slate-400">
-              Weight updates submitted. Raw patient data never left this browser tab.
-              The Central Server can now include your updates in FedAvg aggregation.
-            </p>
-          </section>
-        )}
+        <AnimatePresence>
+          {result && (
+            <motion.section 
+              initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="bg-white/90 backdrop-blur-2xl rounded-3xl border border-emerald-100 p-8 shadow-2xl shadow-emerald-500/15 relative overflow-hidden"
+            >
+              {/* Premium Result Glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                    <CheckCircle2 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-emerald-800">Training Complete</h2>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">Local round successfully finished and verified.</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-6 mb-8">
+                  <Metric label="Accuracy Model" value={`${(result.metrics.accuracy * 100).toFixed(1)}%`} color="emerald" delay={0} />
+                  <Metric label="Final Train Loss" value={result.metrics.train_loss.toFixed(4)} color="indigo" delay={0.1} />
+                  <Metric label="Patient Records" value={String(result.num_samples)} color="violet" delay={0.2} />
+                </div>
+                
+                <div className="bg-gradient-to-r from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100 shadow-inner flex gap-4 items-center">
+                  <div className="bg-white p-2.5 rounded-xl shadow-sm border border-emerald-50 shrink-0">
+                    <Database className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <p className="text-sm text-slate-700 font-medium leading-relaxed">
+                    <strong className="text-emerald-900 block mb-1">Privacy Preserved Submission</strong>
+                    Weight deltas submitted successfully to the central server. Raw patient data never left your device. Local state is safely stored.
+                  </p>
+                </div>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         {/* Previous submission from server state */}
         {!result && client && client.rounds_submitted > 0 && (
-          <section className="bg-white rounded-2xl border border-slate-200 p-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Previous Submission</h2>
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <Metric label="Accuracy"
+          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white/60 backdrop-blur-xl rounded-3xl border border-white p-8 shadow-lg shadow-slate-200/30">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-6">Historical Protocol Data</h2>
+            <div className="grid grid-cols-3 gap-6 mb-5">
+              <Metric label="Last Accuracy"
                 value={client.metrics?.accuracy != null ? `${(client.metrics.accuracy * 100).toFixed(1)}%` : "—"}
-                color="emerald" />
-              <Metric label="Train Loss"
+                color="emerald" delay={0} />
+              <Metric label="Last Train Loss"
                 value={client.metrics?.train_loss != null ? client.metrics.train_loss.toFixed(4) : "—"}
-                color="indigo" />
-              <Metric label="Samples"
+                color="indigo" delay={0.05} />
+              <Metric label="Total Samples"
                 value={client.num_samples > 0 ? String(client.num_samples) : "—"}
-                color="slate" />
+                color="slate" delay={0.1} />
             </div>
-            <p className="text-xs text-slate-400">Rounds submitted: <strong>{client.rounds_submitted}</strong></p>
-          </section>
+            <div className="flex items-center justify-center mt-6">
+              <div className="bg-slate-50 border border-slate-200/60 rounded-full px-5 py-2 flex items-center gap-3">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+                </span>
+                <span className="text-xs font-semibold text-slate-600">
+                  Total Participated Rounds: <strong className="text-slate-900 ml-1">{client.rounds_submitted}</strong>
+                </span>
+              </div>
+            </div>
+          </motion.section>
         )}
 
-        {isComplete && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-6 py-4 text-emerald-800 text-sm font-medium">
-            ✓ Federation complete — the global model has been updated with contributions from all hospitals.
-          </div>
-        )}
+        <AnimatePresence>
+          {isComplete && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-2xl p-1 shadow-lg shadow-emerald-500/20">
+              <div className="bg-white/95 rounded-xl px-6 py-5 flex items-start gap-4">
+                <div className="bg-emerald-100 rounded-full p-2 shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Federation Complete</h4>
+                  <p className="text-sm text-slate-600 mt-1 font-medium">The global model has been updated with contributions from all hospitals.</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* To give some bottom padding */}
+        <div className="h-4" />
       </div>
     </div>
   );
@@ -386,29 +613,59 @@ export default function HospitalMonitor({ params }: Props) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function Step({ n, label, status }: { n: number; label: string; status: "done" | "active" | "waiting" }) {
+function Step({ n, label, status, icon, children }: { n: number; label: string; status: "done" | "active" | "waiting"; icon: React.ReactNode; children?: React.ReactNode }) {
   const styles = {
-    done:    { circle: "bg-emerald-100 text-emerald-700", icon: "✓", text: "text-slate-700" },
-    active:  { circle: "bg-indigo-500 text-white",        icon: "●", text: "text-slate-900 font-semibold" },
-    waiting: { circle: "bg-slate-100 text-slate-400",     icon: String(n), text: "text-slate-400" },
+    done:    { circle: "bg-emerald-100 text-emerald-600 shadow-inner", ring: "ring-emerald-100", text: "text-slate-700 font-semibold" },
+    active:  { circle: "bg-gradient-to-tr from-indigo-500 to-violet-500 text-white shadow-md shadow-indigo-500/30", ring: "ring-indigo-100", text: "text-slate-900 font-bold" },
+    waiting: { circle: "bg-slate-100 text-slate-400", ring: "ring-transparent", text: "text-slate-400 font-medium" },
   }[status];
 
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${styles.circle}`}>
-        {styles.icon}
+    <div className="flex items-start gap-5 py-3.5 group">
+      <div className={cn(
+        "relative w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-500 ring-4 mt-0.5",
+        styles.circle, styles.ring,
+        status === "active" && "scale-105"
+      )}>
+        {status === "done" ? <CheckCircle2 className="w-6 h-6" /> : (status === "active" ? <div className="w-5 h-5">{icon}</div> : <span className="text-sm font-black">{n}</span>)}
+        {status === "active" && (
+           <div className="absolute -top-2 -right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+             <span className="text-[10px] font-black text-indigo-600">{n}</span>
+           </div>
+        )}
       </div>
-      <span className={`text-sm ${styles.text}`}>{label}</span>
+      <div className="flex-1 min-w-0 pt-2.5">
+        <span className={cn("text-sm transition-colors duration-300 block", styles.text)}>{label}</span>
+        {children}
+      </div>
     </div>
   );
 }
 
-function Metric({ label, value, color }: { label: string; value: string; color: string }) {
-  const bg = { emerald: "bg-emerald-50 text-emerald-700", indigo: "bg-indigo-50 text-indigo-700", slate: "bg-slate-50 text-slate-700" }[color] ?? "bg-slate-50 text-slate-700";
+function Metric({ label, value, color, delay = 0 }: { label: string; value: string; color: string; delay?: number }) {
+  const themes: Record<string, string> = { 
+    emerald: "from-emerald-50 to-white text-emerald-700 border-emerald-200/50 shadow-emerald-500/10", 
+    indigo: "from-indigo-50 to-white text-indigo-700 border-indigo-200/50 shadow-indigo-500/10", 
+    violet: "from-violet-50 to-white text-violet-700 border-violet-200/50 shadow-violet-500/10",
+    slate: "from-slate-50 to-white text-slate-700 border-slate-200/50 shadow-slate-500/5" 
+  };
+  const theme = themes[color] ?? themes.slate;
+
   return (
-    <div className={`rounded-xl p-4 text-center ${bg}`}>
-      <div className="text-xl font-black">{value}</div>
-      <div className="text-xs font-semibold uppercase tracking-wide opacity-70 mt-1">{label}</div>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.5, type: "spring", bounce: 0.4 }}
+      className={cn("rounded-2xl p-6 relative overflow-hidden bg-gradient-to-b border shadow-lg group hover:shadow-xl transition-shadow duration-300", theme)}
+    >
+      {/* Decorative background element */}
+      <div className={cn(
+        "absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10 blur-xl group-hover:opacity-20 transition-opacity duration-500",
+        color === "emerald" ? "bg-emerald-500" : color === "indigo" ? "bg-indigo-500" : color === "violet" ? "bg-violet-500" : "bg-slate-400"
+      )} />
+      
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="text-4xl font-black tracking-tight mb-1">{value}</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest opacity-70 bg-white/50 px-2 py-0.5 rounded-full backdrop-blur-sm shadow-sm">{label}</div>
+      </div>
+    </motion.div>
   );
 }

@@ -28,14 +28,14 @@
       "last_seen": "2026-03-04T19:23:29.050190"
     },
     "budapest": {
-      "rounds_submitted": 1,
-      "num_samples": 236,
+      "rounds_submitted": 5,
+      "num_samples": 243,
       "metrics": {
-        "train_loss": 0.23210585117340088,
-        "eval_loss": 0.6130017042160034,
-        "accuracy": 0.8103448152542114
+        "train_loss": 0.2792966365814209,
+        "eval_loss": 0.41517701745033264,
+        "accuracy": 0.8000000715255737
       },
-      "last_seen": "2026-03-04T19:27:20.316424"
+      "last_seen": "2026-03-04T21:52:54.741994"
     }
   },
   "history": {
@@ -62,5 +62,5 @@
       "eval_loss": []
     }
   },
-  "last_updated": "2026-03-04T19:27:20.316469"
+  "last_updated": "2026-03-04T21:52:54.742042"
 }

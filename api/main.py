@@ -28,7 +28,7 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from api.state import load, save, reset, GLOBAL_PARAMS, WEIGHTS_DIR
-from api.aggregation import publish_model, aggregate
+from api.aggregation import publish_model, run_aggregation_round
 from api.config import SAMPLE_DATA
 
 app = FastAPI(title="FL Central Server", version="1.0")
@@ -99,7 +99,7 @@ def get_global_model_json():
 
 
 @app.post("/api/hospital/{name}/submit")
-def submit_weights_json(name: str, body: WeightSubmission):
+def submit_weights_json(name: str, body: WeightSubmission, background_tasks: BackgroundTasks):
     """Hospital browser submits trained weights as JSON after local TF.js training.
     Receives TF.js format (kernel [in, out]), converts back to PyTorch format for FedAvg.
     """
@@ -126,6 +126,10 @@ def submit_weights_json(name: str, body: WeightSubmission):
         "last_seen": datetime.now().isoformat(),
     }
     save(state)
+    
+    # Automatically aggregate immediately after a hospital submits!
+    background_tasks.add_task(run_aggregation_round)
+    
     return {"submitted": True, "client": name, "num_samples": body.num_samples, "metrics": body.metrics}
 
 
@@ -146,6 +150,7 @@ def get_sample_data(name: str):
 async def submit_weights_file(
     client_name: str,
     file: Annotated[UploadFile, File()],
+    background_tasks: BackgroundTasks
 ):
     """Accept a .pt weight file from a standalone Python hospital client."""
     WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -159,22 +164,23 @@ async def submit_weights_file(
         state["clients"][client_name] = {"rounds_submitted": 0, "num_samples": 0, "last_seen": None, "metrics": {}}
     state["clients"][client_name]["last_seen"] = datetime.now().isoformat()
     save(state)
+
+    # Automatically aggregate
+    background_tasks.add_task(run_aggregation_round)
+
     return {"received": True, "client": client_name}
 
 
 @app.post("/api/aggregate")
 def run_aggregate(req: AggregateRequest, background_tasks: BackgroundTasks):
-    """Trigger FedAvg aggregation over all submitted weights."""
+    """Fallback manual trigger for FedAvg aggregation over all submitted weights."""
     if not GLOBAL_PARAMS.exists():
         raise HTTPException(status_code=400, detail="Publish global model first.")
     if not list(WEIGHTS_DIR.glob("*.pt")):
         raise HTTPException(status_code=400, detail="No weight submissions yet.")
-    background_tasks.add_task(
-        aggregate,
-        num_rounds=req.num_rounds,
-        epochs_per_round=req.epochs_per_round,
-        learning_rate=req.learning_rate,
-    )
+    
+    # Execute single round manually via dashboard if needed
+    background_tasks.add_task(run_aggregation_round)
     return {"started": True}
 
 

@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import sys
 from pathlib import Path
+import threading
 from flwr.server.strategy.aggregate import aggregate as flwr_aggregate
 
 ROOT = Path(__file__).parent.parent
@@ -30,24 +31,29 @@ def publish_model() -> dict:
     save(state)
     return {"published": True, "path": str(GLOBAL_PARAMS)}
 
-def aggregate(num_rounds: int, epochs_per_round: int, learning_rate: float) -> dict:
-    """Run FedAvg over all submitted weight files.
-    Discovers clients dynamically from weights/ directory using Flower.
+# Global lock to serialize aggregation, preventing parallel race conditions
+aggregation_lock = threading.Lock()
+
+def run_aggregation_round() -> dict:
+    """Run FedAvg over all currently submitted weight files for a single round.
+    Discovers clients dynamically from weights/ directory.
+    Secured by a thread lock to prevent parallel background tasks from conflicting.
     """
-    WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
-    state = load()
-
-    state.update({
-        "status": "aggregating",
-        "total_rounds": num_rounds,
-        "started_at": datetime.now().isoformat(),
-        "history": {"rounds": [], "accuracy": [], "train_loss": [], "eval_loss": []},
-    })
-    save(state)
-
-    for rnd in range(1, num_rounds + 1):
+    with aggregation_lock:
+        WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
         state = load()
-        state["current_round"] = rnd
+
+        # Increment round sequentially
+        rnd = state.get("current_round", 0) + 1
+        state.update({
+            "status": "aggregating",
+            "current_round": rnd,
+        })
+        
+        # Initialize history if missing
+        if "history" not in state:
+            state["history"] = {"rounds": [], "accuracy": [], "train_loss": [], "eval_loss": []}
+            
         save(state)
 
         # Discover submitted weights dynamically
@@ -88,6 +94,10 @@ def aggregate(num_rounds: int, epochs_per_round: int, learning_rate: float) -> d
             state["clients"][client_name]["last_seen"] = datetime.now().isoformat()
             save(state)
 
+            # Remove the weight file so stale weights aren't reused next round!
+            # (This forces clients to participate in every round if they want to contribute)
+            wf.unlink(missing_ok=True)
+
         # Flower's FedAvg — weighted average by num_samples
         results = [(params, n) for params, n in zip(all_params, all_samples)]
         aggregated = flwr_aggregate(results)
@@ -112,12 +122,10 @@ def aggregate(num_rounds: int, epochs_per_round: int, learning_rate: float) -> d
         h["train_loss"].append(wavg(round_metrics["train_loss"]))
         h["eval_loss"].append(wavg(round_metrics["eval_loss"]))
         h["accuracy"].append(wavg(round_metrics["accuracy"]))
+        
+        state.update({
+            "status": "ready", # Ready for next round
+            "completed_at": datetime.now().isoformat(),
+        })
         save(state)
-
-    state = load()
-    state.update({
-        "status": "complete",
-        "completed_at": datetime.now().isoformat(),
-    })
-    save(state)
-    return {"rounds_completed": num_rounds, "clients": len(weight_files)}
+        return {"round_completed": rnd, "clients_aggregated": len(weight_files)}

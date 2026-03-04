@@ -103,7 +103,9 @@ export default function HospitalMonitor({ params }: Props) {
   const [progress, setProgress]   = useState<{ epoch: number; total: number; loss: number } | null>(null);
   const [result, setResult]       = useState<TrainResult | null>(null);
   const [error, setError]         = useState<string | null>(null);
-  const [globalWeights, setGlobalWeights] = useState<number[] | null>(null);
+  const [initialWeights, setInitialWeights] = useState<{ round: number; weights: number[] } | null>(null);
+  const [updatedWeights, setUpdatedWeights] = useState<{ round: number; weights: number[] } | null>(null);
+  const [currentRoundRef, setCurrentRoundRef] = useState<number>(-1);
   const fileRef                   = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -114,16 +116,22 @@ export default function HospitalMonitor({ params }: Props) {
   }, []);
 
   useEffect(() => {
-    // If model is published, proactively fetch it to show a sample of its weights
-    if (status?.model_published && !globalWeights) {
+    // If model is published and we haven't fetched the weights for THIS round yet
+    if (status?.model_published && status.current_round !== currentRoundRef) {
       fetchGlobalModelJson()
         .then(m => {
           // Grab first 8 parameters from the first layer's kernel for display
-          setGlobalWeights(m.layers[0].kernel.flat().slice(0, 8));
+          const w = m.layers[0].kernel.flat().slice(0, 8);
+          if (currentRoundRef === -1) {
+            setInitialWeights({ round: status.current_round, weights: w });
+          } else {
+            setUpdatedWeights({ round: status.current_round, weights: w });
+          }
+          setCurrentRoundRef(status.current_round);
         })
         .catch(console.error);
     }
-  }, [status?.model_published, globalWeights]);
+  }, [status?.model_published, status?.current_round, currentRoundRef]);
 
   const modelPublished = status?.model_published ?? false;
   const client         = status?.clients?.[displayName];
@@ -302,7 +310,7 @@ export default function HospitalMonitor({ params }: Props) {
                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Model Version</div>
                          </div>
                          <div className="flex items-baseline gap-2 relative z-10 pt-0.5">
-                            <div className="text-sm font-bold text-slate-700">Iteration {status?.current_round ?? 0}</div>
+                            <div className="text-sm font-bold text-slate-700">Iteration {initialWeights?.round ?? status?.current_round ?? 0}</div>
                             <div className="text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded uppercase tracking-wider">Ready</div>
                          </div>
                          <div className="text-xs font-medium text-slate-500 mt-1 relative z-10 leading-relaxed">Awaiting local patient data to learn and improve</div>
@@ -316,7 +324,7 @@ export default function HospitalMonitor({ params }: Props) {
                           <span className="text-slate-300 font-mono lowercase">layer_0.kernel</span>
                         </div>
                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                           {globalWeights ? globalWeights.map((w, idx) => {
+                           {initialWeights ? initialWeights.weights.map((w: number, idx: number) => {
                              const labels = ["Age", "Sex", "Chest Pain Type", "Resting BP", "Cholesterol", "Fasting Blood Sugar", "Resting ECG", "Max Heart Rate"];
                              return (
                                <div key={idx} className="bg-white border border-slate-100/80 rounded-lg p-2 flex flex-col items-center justify-center shadow-sm relative overflow-hidden group">
@@ -545,7 +553,7 @@ export default function HospitalMonitor({ params }: Props) {
                   <Metric label="Patient Records" value={String(result.num_samples)} color="violet" delay={0.2} />
                 </div>
                 
-                <div className="bg-gradient-to-r from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100 shadow-inner flex gap-4 items-center">
+                <div className="bg-gradient-to-r from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100 shadow-inner flex gap-4 items-center mb-6">
                   <div className="bg-white p-2.5 rounded-xl shadow-sm border border-emerald-50 shrink-0">
                     <Database className="w-6 h-6 text-emerald-600" />
                   </div>
@@ -554,6 +562,15 @@ export default function HospitalMonitor({ params }: Props) {
                     Weight deltas submitted successfully to the central server. Raw patient data never left your device. Local state is safely stored.
                   </p>
                 </div>
+                
+                {updatedWeights && (
+                  <div className="mt-4 border-t border-emerald-100/50 pt-6">
+                    <ParameterSnapshot 
+                      weights={updatedWeights.weights} 
+                      label={`Updated Global Parameters (Iter ${updatedWeights.round})`} 
+                    />
+                  </div>
+                )}
               </div>
             </motion.section>
           )}
@@ -667,5 +684,43 @@ function Metric({ label, value, color, delay = 0 }: { label: string; value: stri
         <div className="text-[10px] font-bold uppercase tracking-widest opacity-70 bg-white/50 px-2 py-0.5 rounded-full backdrop-blur-sm shadow-sm">{label}</div>
       </div>
     </motion.div>
+  );
+}
+
+const WEIGHT_LABELS = [
+  "Age", "Sex", "Chest Pain Type", "Resting BP",
+  "Cholesterol", "Fasting Blood Sugar", "Resting ECG", "Max Heart Rate"
+];
+
+function ParameterSnapshot({ weights, label }: { weights: number[] | null, label: string }) {
+  return (
+    <div className="mt-8 bg-slate-50 border border-slate-100/50 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4 px-1">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</h3>
+        <span className="text-[10px] font-mono font-semibold text-slate-400 bg-white px-2 py-0.5 rounded-md border border-slate-100 shadow-xs">
+          layer_0.kernel
+        </span>
+      </div>
+      
+      {weights ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {weights.map((w, i) => (
+            <div key={i} className="bg-white px-4 py-3 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 text-center">{WEIGHT_LABELS[i]}</span>
+              <span className={cn(
+                "font-bold font-mono text-sm transition-colors",
+                w > 0 ? "text-emerald-600" : "text-rose-500"
+              )}>
+                {w > 0 ? "+" : ""}{w.toFixed(4)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="h-16 flex items-center justify-center text-xs text-slate-400 italic">
+          Fetching parameters...
+        </div>
+      )}
+    </div>
   );
 }

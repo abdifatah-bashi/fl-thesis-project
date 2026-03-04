@@ -12,11 +12,11 @@
   --font-heading: var(--font-montserrat), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@custom-variant dark (&:where(.dark, .dark *));
+
+.dark {
+  --background: #0B101E; /* Deep premium blue-black */
+  --foreground: #F8FAFC;
 }
 
 body {

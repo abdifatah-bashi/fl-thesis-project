@@ -9,3 +9,4 @@ datasets
 streamlit
 seaborn
 matplotlib
+python-multipart

@@ -12,7 +12,6 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE_NAME: fl-thesis-backend
-  # Note: Adjust these ARTIFACT_REGISTRY details as needed for your GCP project
   REPOSITORY: fl-thesis-repo
 
 jobs:
@@ -38,12 +37,18 @@ jobs:
       - name: Authorize Docker push
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and Push Docker image
         working-directory: ./backend
         run: |
           DOCKER_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          docker build -t "$DOCKER_TAG" .
-          docker push "$DOCKER_TAG"
+          docker buildx build \
+            --cache-from=type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:cache \
+            --cache-to=type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:cache,mode=max \
+            --push \
+            -t "$DOCKER_TAG" .
 
   deploy:
     needs: build
@@ -67,7 +72,6 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
           flags: '--allow-unauthenticated --memory=2Gi'
-
 
       - name: Show Output
         run: echo ${{ steps.deploy.outputs.url }}

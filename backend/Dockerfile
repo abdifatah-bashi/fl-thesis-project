@@ -17,8 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the current directory contents into the container at /app
 COPY . .
 
-# Expose the port the app runs on
-EXPOSE 8000
+# Expose a default port (Cloud Run sets its own $PORT)
+ENV PORT=8000
+EXPOSE $PORT
 
-# Run uvicorn server
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run uvicorn server dynamically on $PORT
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT}"]

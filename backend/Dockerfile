@@ -10,10 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
-COPY requirments.txt .
+COPY requirements.txt .
 
-# Install any needed packages specified in requirments.txt
-RUN pip install --no-cache-dir -r requirments.txt
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the current directory contents into the container at /app
 COPY . .

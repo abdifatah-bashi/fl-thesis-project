@@ -30,7 +30,7 @@ flwr==1.25.0
 flwr-datasets==0.5.0
 fonttools==4.61.1
 frozenlist==1.8.0
-fsspec==2026.1.0
+fsspec==2024.9.0
 ghp-import==2.1.0
 gitdb==4.0.12
 GitPython==3.1.46

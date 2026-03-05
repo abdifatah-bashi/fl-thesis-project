@@ -1,10 +1,14 @@
+# Git
+.git
+.gitignore
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Distribution / packaging
+*.so
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -23,19 +27,22 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Virtual Environment
-venv/
+# Environments
+.env
+.venv
 env/
+venv/
 ENV/
-env.bak/
-venv.bak/
 
-# Editor
-.vscode/
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDEs
 .idea/
-.DS_Store
+.vscode/
+*.swp
+*.swo
 
-.claude
-
-# Documentation build (MkDocs)
-site/gen-lang-client-0779279735-d6a5ed4dea98.json
+# Project specific
+results/
+data/

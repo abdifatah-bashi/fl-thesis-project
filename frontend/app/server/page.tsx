@@ -122,9 +122,15 @@ export default function ServerDashboard() {
                 disabled={!!loading}
                 onClick={async () => {
                   setLoading("publish");
-                  await publishModel();
-                  await poll();
-                  setLoading("");
+                  try {
+                    await publishModel();
+                    await poll();
+                  } catch (e: any) {
+                    console.error(e);
+                    alert("Failed to publish model. Ensure the backend URL is correctly configured in NEXT_PUBLIC_API_URL and that the backend is running. Details: " + e.message);
+                  } finally {
+                    setLoading("");
+                  }
                 }}
                 className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-300 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
               >
@@ -299,7 +305,15 @@ export default function ServerDashboard() {
               {/* Reset Footer */}
               <div className="flex justify-end pt-8">
                  <button
-                   onClick={async () => { await resetAll(); await poll(); }}
+                   onClick={async () => { 
+                   if (!confirm("Are you sure you want to completely purge the federated network data?")) return;
+                   try {
+                     await resetAll(); 
+                     await poll(); 
+                   } catch (e: any) {
+                     alert("Failed to reset network. Is the backend unreachable?");
+                   }
+                 }}
                    className="flex items-center gap-2 text-xs font-heading font-bold uppercase tracking-widest text-slate-600 hover:text-red-400 transition-colors"
                  >
                    <span className="w-2 h-2 rounded-full bg-red-500/50" />

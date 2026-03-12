@@ -6,7 +6,7 @@ description: Complete REST API documentation — endpoints, request/response sch
 
 # API Reference
 
-The HeartDiseaseNet backend exposes a minimal REST API via **FastAPI**. Every endpoint is stateless — the server stores only the current global model weights in memory and has no database.
+The FL platform backend exposes a minimal REST API via **FastAPI**. Every endpoint is stateless — the server stores only the current global model weights in memory and has no database.
 
 <Callout type="info" title="Base URL">
   All endpoints are prefixed with the deployed backend URL. In production, this is configured via the `NEXT_PUBLIC_API_URL` environment variable.
@@ -32,7 +32,7 @@ The HeartDiseaseNet backend exposes a minimal REST API via **FastAPI**. Every en
 
 ## `POST /api/model/publish`
 
-Initializes the **genesis model** — the first iteration of the HeartDiseaseNet neural network. This endpoint should be called once by the server operator to bootstrap the federation.
+Initializes the **genesis model** — the first iteration of the global neural network. This endpoint should be called once by the server operator to bootstrap the federation.
 
 <Tabs items={["Request", "Response", "Details"]}>
   <Tab value="Request">
@@ -63,7 +63,7 @@ Initializes the **genesis model** — the first iteration of the HeartDiseaseNet
   <Tab value="Details">
     **What happens internally:**
 
-    1. PyTorch creates a new `HeartDiseaseNet` instance with random weights
+    1. PyTorch creates a new model instance with random weights
     2. Each weight matrix is transposed from PyTorch format `[out, in]` to TF.js format `[in, out]`
     3. The transposed weights are serialized to JSON and stored in server memory
     4. The global round counter is set to `1`

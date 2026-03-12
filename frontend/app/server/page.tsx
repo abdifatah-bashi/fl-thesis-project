@@ -114,7 +114,7 @@ export default function ServerDashboard() {
               <div className="space-y-3">
                 <h1 className="text-4xl font-heading font-bold text-slate-900 dark:text-white tracking-tight">Initialize Global Intelligence</h1>
                 <p className="text-slate-500 dark:text-slate-400 text-lg leading-relaxed">
-                  Mint the genesis iteration of the HeartDiseaseNet globally.<br/> Once initialized, hospitals can seamlessly fetch, train, and submit their learned weights.
+                  Mint the genesis iteration of the global model.<br/> Once initialized, hospitals can seamlessly fetch, train, and submit their learned weights.
                 </p>
               </div>
 

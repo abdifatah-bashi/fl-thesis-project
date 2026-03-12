@@ -16,7 +16,7 @@ export function baseOptions(): BaseLayoutProps {
             <Activity className="w-4 h-4 text-white" />
           </div>
           <span className="font-heading font-bold tracking-tight text-slate-900 dark:text-white text-base">
-            HeartDiseaseNet<span className="text-amber-600 dark:text-amber-500 font-medium ml-1">Docs</span>
+            FedLearn<span className="text-amber-600 dark:text-amber-500 font-medium ml-1">Docs</span>
           </span>
         </div>
       ),

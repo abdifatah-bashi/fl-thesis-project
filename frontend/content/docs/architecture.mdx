@@ -6,7 +6,7 @@ description: A two-component federated system — a stateless aggregation server
 
 # System Architecture
 
-HeartDiseaseNet is composed of two independently deployed components that communicate exclusively via REST APIs. This separation ensures that the aggregation server never has access to patient data, and the hospital client never exposes its local training data to the network.
+The platform is composed of two independently deployed components that communicate exclusively via REST APIs. This separation ensures that the aggregation server never has access to raw data, and the client never exposes its local training data to the network.
 
 ---
 
@@ -38,7 +38,7 @@ flowchart LR
 
 ## Central Aggregation Server
 
-The backend is a stateless **FastAPI** application deployed on Google Cloud Run. It serves as the coordination layer for the entire federated network.
+The backend is a stateless **FastAPI** application that serves as the coordination layer for the entire federated network. It can be deployed on any container platform.
 
 ### Responsibilities
 
@@ -52,7 +52,7 @@ The backend is a stateless **FastAPI** application deployed on Google Cloud Run.
 
 ### The Neural Network
 
-The genesis model is a **multi-layer perceptron (MLP)** built in PyTorch for binary heart disease classification:
+The genesis model is a **multi-layer perceptron (MLP)** built in PyTorch for binary classification. The current experiment uses heart disease prediction with 13 clinical features:
 
 ```python
 class HeartDiseaseNet(nn.Module):
@@ -170,7 +170,7 @@ Here is a detailed walkthrough of a single federated learning round from start t
   <Step>
     ### Round Initialization
 
-    The server operator triggers `POST /api/model/publish`. The server creates a new PyTorch `HeartDiseaseNet`, transposes its weights to TF.js format, and stores them in memory as the **v1 global model**. The server reports `current_round: 1` via the status endpoint.
+    The server operator triggers `POST /api/model/publish`. The server creates a new PyTorch model, transposes its weights to TF.js format, and stores them in memory as the **v1 global model**. The server reports `current_round: 1` via the status endpoint.
   </Step>
 
   <Step>

@@ -9,7 +9,7 @@ description: The in-browser training pipeline — from CSV loading to TensorFlow
 The hospital dashboard is the heart of the federated learning client. Built with **Next.js App Router**, **TensorFlow.js**, **Tailwind CSS**, and **Framer Motion**, it provides a complete in-browser training environment where hospitals can participate in the federation without installing any software or exposing any data.
 
 <Callout type="info" title="No Server-Side Training">
-  Unlike traditional ML platforms that run training on cloud GPUs, HeartDiseaseNet pushes all computation to the **browser**. TensorFlow.js leverages the hospital machine's **WebGL** (GPU) or **WASM** (CPU) backend. The central server never processes any training data.
+  Unlike traditional ML platforms that run training on cloud GPUs, this platform pushes all computation to the **browser**. TensorFlow.js leverages the hospital machine's **WebGL** (GPU) or **WASM** (CPU) backend. The central server never processes any training data.
 </Callout>
 
 ---
@@ -198,7 +198,7 @@ This is where the computation happens. TensorFlow.js runs the full training loop
     | **WASM** | CPU (optimized) | Fast | Universal fallback |
     | **CPU** | CPU (JS) | Slowest | Always available |
 
-    The backend is selected at runtime. No configuration is needed — TF.js probes the environment and picks the fastest option. For the HeartDiseaseNet model size (~5K parameters), even the CPU backend trains in under 10 seconds.
+    The backend is selected at runtime. No configuration is needed — TF.js probes the environment and picks the fastest option. For the current model size (~5K parameters), even the CPU backend trains in under 10 seconds.
   </Tab>
 
   <Tab value="Live Metrics">

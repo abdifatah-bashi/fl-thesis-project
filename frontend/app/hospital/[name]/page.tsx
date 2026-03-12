@@ -165,7 +165,7 @@ export default function HospitalMonitor({ params }: Props) {
       const Xscaled = standardScale(X);
       const { xTrain, yTrain, xTest, yTest, numTrain } = splitTrainTest(Xscaled, y);
 
-      // 4. Build the same architecture as HeartDiseaseNet (13→64→32→1, sigmoid)
+      // 4. Build the same architecture as the server model (13→64→32→1, sigmoid)
       const model = tf.sequential({
         layers: [
           tf.layers.dense({ inputShape: [13], units: 64, activation: "relu" }),

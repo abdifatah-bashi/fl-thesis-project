@@ -63,6 +63,12 @@ export default function Landing() {
         <div className="flex items-center gap-4">
           <ThemeToggle />
           <Link 
+            href="/docs" 
+            className="group relative flex items-center gap-2.5 text-xs font-heading font-bold uppercase tracking-widest text-slate-700 dark:text-slate-200 transition-all px-5 py-3 rounded-full overflow-hidden bg-white/40 dark:bg-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-700 border border-transparent hover:border-slate-200 dark:hover:border-slate-600 backdrop-blur-md"
+          >
+            <span className="hidden sm:inline">Docs</span>
+          </Link>
+          <Link 
             href="/server" 
             className="group relative flex items-center gap-2.5 text-xs font-heading font-bold uppercase tracking-widest text-slate-700 dark:text-slate-200 transition-all px-6 py-3 rounded-full overflow-hidden bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 hover:border-yellow-600/30 dark:hover:border-cyan-400/30 hover:shadow-md hover:shadow-yellow-600/10 dark:shadow-lg dark:shadow-black/20"
           >

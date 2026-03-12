@@ -14,6 +14,7 @@ const montserrat = Montserrat({
 });
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { RootProvider } from "fumadocs-ui/provider/next";
 
 export const metadata: Metadata = {
   title: "Federated Learning - Hospital Simulation",
@@ -36,7 +37,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <RootProvider theme={{ enabled: false }}>
+            {children}
+          </RootProvider>
         </ThemeProvider>
       </body>
     </html>

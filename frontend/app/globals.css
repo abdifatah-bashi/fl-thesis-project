@@ -1,8 +1,15 @@
 @import "tailwindcss";
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+@source '../node_modules/fumadocs-ui/dist/**/*.js';
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Light mode fumadocs overrides */
+  --color-fd-primary: #d97706;
+  --color-fd-primary-foreground: #ffffff;
 }
 
 @theme inline {
@@ -15,8 +22,28 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 .dark {
-  --background: #0B101E; /* Deep premium blue-black */
-  --foreground: #F8FAFC;
+  --background: #0A0E1A;
+  --foreground: #F1F5F9;
+
+  /* Fumadocs overrides */
+  --color-fd-background: #0A0E1A;
+  --color-fd-foreground: #F1F5F9;
+  --color-fd-card: #0F1629;
+  --color-fd-popover: #0F1629;
+  --color-fd-primary: #f59e0b;
+  --color-fd-primary-foreground: #0A0E1A;
+  --color-fd-border: rgba(255, 255, 255, 0.08);
+  --color-fd-muted: rgba(255, 255, 255, 0.04);
+  --color-fd-muted-foreground: #94a3b8;
+  --color-fd-secondary: rgba(255, 255, 255, 0.06);
+  --color-fd-accent: rgba(245, 158, 11, 0.1);
+  --color-fd-accent-foreground: #f59e0b;
+}
+
+.dark #nd-sidebar {
+  --color-fd-muted: rgba(255, 255, 255, 0.02);
+  --color-fd-secondary: rgba(255, 255, 255, 0.04);
+  --color-fd-border: rgba(255, 255, 255, 0.06);
 }
 
 body {
@@ -26,6 +53,71 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
+}
+
+/* Refined prose styling for docs content */
+.prose {
+  --tw-prose-body: #374151;
+  --tw-prose-headings: #111827;
+}
+
+.dark .prose {
+  --tw-prose-body: #cbd5e1;
+  --tw-prose-headings: #f1f5f9;
+}
+
+/* Callout enhancements */
+.dark [data-callout] {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Code block styling */
+.dark pre {
+  background: #0F1629 !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+pre {
+  border-radius: 0.75rem !important;
+}
+
+/* Table styling in docs */
+.prose table {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.dark .prose th {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dark .prose td {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Steps component polish */
+[data-steps] {
+  --fd-steps-color: #d97706;
+}
+
+.dark [data-steps] {
+  --fd-steps-color: #f59e0b;
+}
+
+/* Cards hover enhancement */
+[data-card]:hover {
+  border-color: rgba(217, 119, 6, 0.4);
+  transition: border-color 0.2s ease;
+}
+
+.dark [data-card]:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.05);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
 @keyframes gradient {

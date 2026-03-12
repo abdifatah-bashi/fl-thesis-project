@@ -1,0 +1,328 @@
+---
+title: API Reference
+description: Complete REST API documentation — endpoints, request/response schemas, and the Federated Averaging aggregation engine.
+---
+
+
+# API Reference
+
+The HeartDiseaseNet backend exposes a minimal REST API via **FastAPI**. Every endpoint is stateless — the server stores only the current global model weights in memory and has no database.
+
+<Callout type="info" title="Base URL">
+  All endpoints are prefixed with the deployed backend URL. In production, this is configured via the `NEXT_PUBLIC_API_URL` environment variable.
+
+  ```
+  https://your-backend-url.run.app/api/...
+  ```
+</Callout>
+
+---
+
+## Endpoint Overview
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/model/publish` | Initialize the genesis global model |
+| `GET` | `/api/status` | Fetch federation status and connected clients |
+| `GET` | `/api/model/global/json` | Download current global model weights |
+| `POST` | `/api/hospital/{name}/submit` | Submit locally-trained weights |
+| `GET` | `/api/results` | Fetch aggregation results and accuracy history |
+
+---
+
+## `POST /api/model/publish`
+
+Initializes the **genesis model** — the first iteration of the HeartDiseaseNet neural network. This endpoint should be called once by the server operator to bootstrap the federation.
+
+<Tabs items={["Request", "Response", "Details"]}>
+  <Tab value="Request">
+    ```bash
+    curl -X POST https://api.example.com/api/model/publish
+    ```
+
+    **Body:** None required. The server creates the model with default PyTorch initialization (Xavier uniform weights).
+  </Tab>
+
+  <Tab value="Response">
+    ```json
+    {
+      "status": "success",
+      "message": "Genesis model published",
+      "round": 1,
+      "architecture": {
+        "layers": [
+          { "type": "Linear", "in": 13, "out": 64 },
+          { "type": "Linear", "in": 64, "out": 32 },
+          { "type": "Linear", "in": 32, "out": 2 }
+        ]
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab value="Details">
+    **What happens internally:**
+
+    1. PyTorch creates a new `HeartDiseaseNet` instance with random weights
+    2. Each weight matrix is transposed from PyTorch format `[out, in]` to TF.js format `[in, out]`
+    3. The transposed weights are serialized to JSON and stored in server memory
+    4. The global round counter is set to `1`
+    5. All previous hospital submissions (if any) are cleared
+
+    <Callout type="warn" title="Destructive Operation">
+      Calling this endpoint again will **reset** the global model to a new random initialization, discarding all progress from previous training rounds. Use with caution in production scenarios.
+    </Callout>
+  </Tab>
+</Tabs>
+
+---
+
+## `GET /api/status`
+
+Returns the current state of the federated network, including which hospitals have submitted weights for the current round.
+
+<Tabs items={["Request", "Response"]}>
+  <Tab value="Request">
+    ```bash
+    curl https://api.example.com/api/status
+    ```
+  </Tab>
+
+  <Tab value="Response">
+    ```json
+    {
+      "current_round": 3,
+      "total_hospitals": 4,
+      "hospitals": [
+        {
+          "name": "cleveland",
+          "status": "submitted",
+          "samples": 303,
+          "accuracy": 0.8712
+        },
+        {
+          "name": "hungarian",
+          "status": "submitted",
+          "samples": 294,
+          "accuracy": 0.8401
+        },
+        {
+          "name": "budapest",
+          "status": "connected",
+          "samples": null,
+          "accuracy": null
+        },
+        {
+          "name": "oslo",
+          "status": "submitted",
+          "samples": 150,
+          "accuracy": 0.8533
+        }
+      ]
+    }
+    ```
+
+    **Hospital statuses:**
+    - `connected` — Hospital has downloaded the global model but not yet submitted weights
+    - `submitted` — Hospital has completed local training and submitted weight updates
+  </Tab>
+</Tabs>
+
+---
+
+## `GET /api/model/global/json`
+
+Downloads the current global model weights as a JSON array. This is the primary endpoint used by hospital clients to synchronize their local models.
+
+<Tabs items={["Request", "Response", "Weight Structure"]}>
+  <Tab value="Request">
+    ```bash
+    curl https://api.example.com/api/model/global/json
+    ```
+  </Tab>
+
+  <Tab value="Response">
+    ```json
+    [
+      [[0.0123, -0.0456, ...], [0.0789, 0.0012, ...], ...],
+      [0.0, 0.0, 0.0, ...],
+      [[0.0234, -0.0567, ...], [0.0891, 0.0023, ...], ...],
+      [0.0, 0.0, 0.0, ...],
+      [[0.0345, -0.0678, ...], [0.0912, 0.0034, ...], ...],
+      [0.0, 0.0, ...]
+    ]
+    ```
+
+    The response is a JSON array containing 6 elements (3 layers x 2 parameters each):
+  </Tab>
+
+  <Tab value="Weight Structure">
+    | Index | Parameter | Shape | Description |
+    |-------|-----------|-------|-------------|
+    | 0 | `fc1.kernel` | `[13, 64]` | Layer 1 weight matrix |
+    | 1 | `fc1.bias` | `[64]` | Layer 1 bias vector |
+    | 2 | `fc2.kernel` | `[64, 32]` | Layer 2 weight matrix |
+    | 3 | `fc2.bias` | `[32]` | Layer 2 bias vector |
+    | 4 | `fc3.kernel` | `[32, 2]` | Output layer weight matrix |
+    | 5 | `fc3.bias` | `[2]` | Output layer bias vector |
+
+    <Callout type="info" title="Already Transposed">
+      These weights are already in **TF.js format** `[in_features, out_features]`. The server handles the PyTorch to TF.js transposition automatically. Hospital clients can directly inject these into a `tf.sequential` model using `model.setWeights()`.
+    </Callout>
+  </Tab>
+</Tabs>
+
+---
+
+## `POST /api/hospital/{name}/submit`
+
+Submits locally-trained model weights from a hospital back to the central server. This is the **only endpoint that receives data from the training process**, and it accepts only weight arrays — never patient data.
+
+<Tabs items={["Request", "Response", "Validation"]}>
+  <Tab value="Request">
+    ```bash
+    curl -X POST https://api.example.com/api/hospital/cleveland/submit \
+      -H "Content-Type: application/json" \
+      -d '{
+        "weights": [
+          [[0.0234, -0.0567, ...], ...],
+          [0.0012, 0.0034, ...],
+          ...
+        ],
+        "metrics": {
+          "accuracy": 0.8712,
+          "loss": 0.3241,
+          "samples": 303
+        }
+      }'
+    ```
+
+    **Path parameters:**
+    - `name` (string) — The hospital identifier (e.g., `cleveland`, `hungarian`, `oslo`)
+
+    **Body fields:**
+
+    | Field | Type | Required | Description |
+    |-------|------|----------|-------------|
+    | `weights` | `number[][]` | Yes | Trained weight arrays from `model.getWeights()` |
+    | `metrics.accuracy` | `number` | Yes | Final validation accuracy |
+    | `metrics.loss` | `number` | Yes | Final training loss |
+    | `metrics.samples` | `number` | Yes | Number of training samples used |
+  </Tab>
+
+  <Tab value="Response">
+    ```json
+    {
+      "status": "success",
+      "hospital": "cleveland",
+      "round": 3,
+      "message": "Weights received. Aggregation triggered.",
+      "aggregation": {
+        "participants": 3,
+        "total_samples": 747,
+        "new_round": 4
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab value="Validation">
+    The server performs the following validation on received weights:
+
+    1. **Shape verification** — Each weight array must match the expected dimensions of the global model
+    2. **NaN/Inf check** — Weight values must be finite numbers (prevents corrupted submissions)
+    3. **Sample count** — Must be a positive integer (used for weighted averaging)
+
+    <Callout type="warn" title="Tensor Transposition">
+      The server transposes received weight matrices from TF.js format `[in, out]` back to PyTorch format `[out, in]` before aggregation:
+
+      ```python
+      kernel = np.array(submitted_kernel).T
+      ```
+
+      This ensures compatibility when averaging weights from multiple hospitals that trained using TF.js.
+    </Callout>
+  </Tab>
+</Tabs>
+
+---
+
+## Aggregation Engine: FedAvg
+
+The **Federated Averaging (FedAvg)** algorithm is the core of the aggregation server. It combines weight updates from multiple hospitals into a single improved global model.
+
+### Algorithm
+
+When hospitals submit their trained weights, the server runs a weighted average that accounts for each hospital's dataset size:
+
+```
+w(t+1) = SUM[ (n_k / n) * w_k(t+1) ]  for k = 1..K
+```
+
+Where:
+- **w** — the model weights
+- **K** — the total number of participating hospitals
+- **n_k** — the number of samples trained by hospital k
+- **n** — the total global samples across all hospitals (n = sum of all n_k)
+- **w_k(t+1)** — the weight update from hospital k
+
+### Why Weighted Averaging?
+
+<Callout type="info" title="Sample-Proportional Weighting">
+  A hospital that trained on 500 patients contributes more to the global model than one that trained on 100 patients. This is intentional — larger datasets generally produce more representative gradient updates. The weights are proportional: the 500-sample hospital's contribution is 5x that of the 100-sample hospital.
+</Callout>
+
+### Implementation
+
+```python
+def run_aggregation_round():
+    """Aggregate all submitted hospital weights using FedAvg."""
+    submissions = load_all_submissions()
+
+    # Calculate total samples across all hospitals
+    total_samples = sum(s['metrics']['samples'] for s in submissions)
+
+    # Initialize aggregated weights as zeros
+    aggregated = [np.zeros_like(w) for w in submissions[0]['weights']]
+
+    # Weighted average: each hospital's contribution proportional to sample count
+    for submission in submissions:
+        weight_fraction = submission['metrics']['samples'] / total_samples
+
+        for i, w in enumerate(submission['weights']):
+            w_array = np.array(w)
+
+            # Transpose kernels (not biases) from TF.js to PyTorch format
+            if w_array.ndim == 2:
+                w_array = w_array.T
+
+            aggregated[i] += weight_fraction * w_array
+
+    # Store as new global model and increment round
+    update_global_model(aggregated)
+```
+
+### Aggregation Example
+
+Consider three hospitals submitting after round 1:
+
+| Hospital | Samples | Weight Fraction | Contribution |
+|----------|---------|----------------|--------------|
+| Cleveland | 303 | 303/747 = 0.406 | 40.6% of final weights |
+| Hungarian | 294 | 294/747 = 0.394 | 39.4% of final weights |
+| Oslo | 150 | 150/747 = 0.201 | 20.1% of final weights |
+| **Total** | **747** | **1.000** | **100%** |
+
+The resulting v2 global model reflects knowledge from all three hospitals proportionally, without any single hospital's raw data being shared.
+
+---
+
+## Error Handling
+
+| HTTP Code | Scenario | Response |
+|-----------|----------|----------|
+| `200` | Success | Operation completed |
+| `400` | Invalid weight shapes or missing fields | `{"error": "Weight shape mismatch"}` |
+| `404` | Unknown endpoint | `{"detail": "Not found"}` |
+| `409` | Model not yet initialized | `{"error": "No global model. Call /publish first"}` |
+| `500` | Server error during aggregation | `{"error": "Aggregation failed"}` |

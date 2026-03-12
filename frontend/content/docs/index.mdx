@@ -1,0 +1,155 @@
+---
+title: HeartDiseaseNet
+description: Privacy-preserving federated learning for heart disease prediction — train globally, keep data local.
+---
+
+
+# HeartDiseaseNet
+
+**HeartDiseaseNet** is a decentralized Federated Learning protocol that enables multiple hospitals to collaboratively train a heart disease prediction model — without ever sharing a single patient record.
+
+Built as a research simulation for a master's thesis at OsloMet, this system demonstrates how real-world healthcare AI can be trained across institutional boundaries while maintaining full compliance with **HIPAA**, **GDPR**, and **the Norwegian Health Data Act**.
+
+<Callout type="info" title="Core Principle">
+  **"Bring the model to the data — never the data to the model."**
+
+  Instead of uploading patient records to a central server, each hospital trains a copy of the global model locally in its own browser. Only the learned mathematical weights are shared back.
+</Callout>
+
+---
+
+## Why Federated Learning?
+
+Traditional machine learning pipelines require centralizing all training data into a single server or data warehouse. In healthcare, this creates a fundamental conflict:
+
+| Challenge | Traditional ML | Federated Learning |
+|-----------|---------------|-------------------|
+| **Data Privacy** | Patient data must leave the hospital | Data never leaves the hospital |
+| **Regulatory Compliance** | Requires complex data-sharing agreements | Compliant by design |
+| **Data Sovereignty** | Single point of failure for breaches | Each hospital retains full control |
+| **Collaboration** | Institutions reluctant to share | Institutions share knowledge, not data |
+| **Model Quality** | Limited to one institution's data | Benefits from diverse multi-site data |
+
+<Callout type="warn" title="The Healthcare Data Problem">
+  A single hospital might have 300 cardiac patients. That is not enough data to train a robust neural network. But 5 hospitals collectively might have 1,500+ patients — enough for a clinically meaningful model. Federated learning makes this collaboration possible without compromising any patient's privacy.
+</Callout>
+
+---
+
+## How It Works
+
+<Steps>
+  <Step>
+    ### Global Model Initialization
+
+    The central server creates a **genesis neural network** using PyTorch — a multi-layer perceptron designed for heart disease classification. The model architecture and initial random weights are published as a JSON endpoint that any hospital can download.
+  </Step>
+
+  <Step>
+    ### Hospital Joins the Federation
+
+    A participating hospital navigates to the web dashboard, enters their institution name, and downloads the current global model weights. Using **TensorFlow.js**, the browser compiles an identical neural network locally — no server-side computation needed.
+  </Step>
+
+  <Step>
+    ### Local Training (In-Browser)
+
+    The hospital loads their private patient CSV file using the browser's native `FileReader` API. The data is parsed into tensors and used to train the model entirely inside the browser tab. Training logs (loss, accuracy, validation metrics) stream in real time.
+
+    **The patient data never touches the network. It stays in the browser's RAM.**
+  </Step>
+
+  <Step>
+    ### Weight Submission
+
+    After training completes, only the updated model **weights** (mathematical arrays of floating-point numbers) are extracted and submitted to the central server via a secure API call. No patient features, labels, or identifiers are transmitted.
+  </Step>
+
+  <Step>
+    ### Federated Averaging (FedAvg)
+
+    The server collects weight submissions from all participating hospitals and applies the **Federated Averaging** algorithm — a weighted mean that accounts for each hospital's sample size. This produces a new, improved global model (round `v2`, `v3`, etc.) that benefits from every hospital's local knowledge.
+  </Step>
+</Steps>
+
+---
+
+## Explore the Documentation
+
+<Cards>
+  <Card
+    title="System Architecture"
+    description="Understand the two-component design: the FastAPI aggregation server and the Next.js hospital client."
+    href="/docs/architecture"
+  />
+  <Card
+    title="Hospital Dashboard"
+    description="Deep dive into the in-browser training pipeline: data loading, TensorFlow.js execution, and weight extraction."
+    href="/docs/frontend"
+  />
+  <Card
+    title="API Reference"
+    description="Complete endpoint documentation with request/response schemas, the FedAvg aggregation engine, and error handling."
+    href="/docs/api"
+  />
+  <Card
+    title="Deployment Guide"
+    description="Docker containerization, GitHub Actions CI/CD, and Google Cloud Run deployment for both services."
+    href="/docs/deployment"
+  />
+</Cards>
+
+---
+
+## Tech Stack
+
+<Tabs items={["Frontend", "Backend", "Infrastructure"]}>
+  <Tab value="Frontend">
+    | Technology | Purpose |
+    |-----------|---------|
+    | **Next.js 16** (App Router) | Server-rendered React framework |
+    | **TensorFlow.js** | In-browser neural network training |
+    | **Tailwind CSS 4** | Utility-first styling |
+    | **Framer Motion** | Animations and transitions |
+    | **Fumadocs** | Documentation engine |
+    | **SWR** | Data fetching and caching |
+  </Tab>
+
+  <Tab value="Backend">
+    | Technology | Purpose |
+    |-----------|---------|
+    | **FastAPI** | High-performance async REST API |
+    | **PyTorch** | Genesis model creation and weight management |
+    | **NumPy** | Tensor transposition and FedAvg computation |
+    | **Uvicorn** | ASGI production server |
+    | **Python 3.11** | Runtime |
+  </Tab>
+
+  <Tab value="Infrastructure">
+    | Technology | Purpose |
+    |-----------|---------|
+    | **Docker** | Multi-stage containerization |
+    | **Google Cloud Run** | Serverless container hosting |
+    | **Artifact Registry** | Container image storage |
+    | **GitHub Actions** | Automated CI/CD pipelines |
+    | **Workload Identity Federation** | Keyless GCP authentication |
+  </Tab>
+</Tabs>
+
+---
+
+## Key Privacy Guarantees
+
+This system provides the following privacy properties by design:
+
+1. **Zero data exfiltration** — Patient CSV files are read using the browser's `FileReader` API. The file contents exist only in client-side RAM and are never transmitted over HTTP.
+
+2. **Weight-only communication** — The only data sent to the server is an array of floating-point numbers (model weights). These weights are mathematical abstractions that cannot be reverse-engineered into individual patient records.
+
+3. **Stateless server** — The central server has no database. It holds only the current global model weights in memory. There is no mechanism to store or query patient data, even accidentally.
+
+4. **No authentication of patient data** — The server never receives, validates, or processes any healthcare data. It operates exclusively on model parameters.
+
+<Callout type="info" title="Research Context">
+  This is a simulation built for academic research. In a production healthcare deployment, additional safeguards such as **differential privacy**, **secure aggregation**, and **model poisoning defenses** would be layered on top of this foundational architecture.
+</Callout>

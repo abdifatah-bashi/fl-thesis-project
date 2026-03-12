@@ -211,6 +211,11 @@ def reset_all():
     return {"reset": True}
 
 
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+
 @app.get("/")
 def root():
     return {"service": "FL Central Server", "docs": "/docs"}
